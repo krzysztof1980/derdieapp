@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test
 import wiktiopeggynary.model.markup.KTemplate
 import wiktiopeggynary.model.markup.PlainText
 import wiktiopeggynary.model.markup.RichText
+import wiktiopeggynary.model.markup.WikipediaLink
 
 internal fun readFixture(name: String): String =
     object {}.javaClass.getResourceAsStream("/articles-de/$name.txt")!!
@@ -68,6 +69,33 @@ class RichTextFlattenerTest {
             PlainText(" Einheiten"),
         )
         assertEquals("[Militär]: Einheiten", flatten(text))
+    }
+
+    // Two-part Kontext per the model's own example ({{K|trans.|t1=;|besonders|…}}):
+    // the first part's separator must render between the bracket and the rest.
+    @Test
+    fun `KTemplate renders the first part separator between bracket and remaining parts`() {
+        val text = RichText(
+            KTemplate(
+                listOf(
+                    KTemplate.Part(RichText("trans."), RichText("; ")),
+                    KTemplate.Part(RichText("besonders"), null),
+                ),
+                RichText(":"),
+            ),
+            PlainText(" Rede"),
+        )
+        assertEquals("[transitiv]; besonders: Rede", flatten(text))
+    }
+
+    // Spec rule "links → their text": WikipediaLink behaves like InternalLink.
+    @Test
+    fun `wikipedia link renders its text falling back to the page title`() {
+        assertEquals(
+            "über die letzte Kaltzeit",
+            flatten(RichText(PlainText("über die "), WikipediaLink("Letzte_Kaltzeit", "letzte Kaltzeit"))),
+        )
+        assertEquals("Letzte_Kaltzeit", flatten(RichText(WikipediaLink("Letzte_Kaltzeit", null))))
     }
 
     @Test

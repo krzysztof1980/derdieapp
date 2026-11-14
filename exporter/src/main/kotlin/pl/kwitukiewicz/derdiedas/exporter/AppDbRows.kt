@@ -59,14 +59,15 @@ fun entryRow(e: Substantiv, pageOrder: Int): EntryRow? {
 
 /**
  * One row per distinct (variant, numerus, kasus) of the inflection tables, skipping
- * placeholders like the `—` of plural-only nouns. The lemma shares the row of its
- * nominative singular form (falling back to the nominative plural for plural tantum).
+ * placeholders like the `—` of plural-only nouns, plus the lemma itself: it shares the
+ * row of its nominative singular form (nominative plural for plural tantum), or forms a
+ * sole fallback row when no table names it — every entry must stay reachable via forms.
  */
 fun formRows(e: Substantiv, entryId: Long): List<FormRow> {
     val cells = flexionCells(e)
     val lemmaCell = cells.singleOrNull { it.isNominativeOf(e.lemma, Numerus.Singular) }
         ?: cells.firstOrNull { it.isNominativeOf(e.lemma, Numerus.Plural) }
-    return cells.map { cell ->
+    val rows = cells.map { cell ->
         FormRow(
             form = cell.form,
             formFolded = foldForm(cell.form),
@@ -75,6 +76,11 @@ fun formRows(e: Substantiv, entryId: Long): List<FormRow> {
             kasus = cell.kasus.name,
             isLemma = cell == lemmaCell,
         )
+    }
+    return if (lemmaCell != null) {
+        rows
+    } else {
+        rows + FormRow(e.lemma, foldForm(e.lemma), entryId, Numerus.Singular.name, Kasus.Nominativ.name, isLemma = true)
     }
 }
 

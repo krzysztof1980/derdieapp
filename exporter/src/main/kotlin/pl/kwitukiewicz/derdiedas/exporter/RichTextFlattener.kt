@@ -23,7 +23,7 @@ private fun renderComponents(components: List<RichTextComponent>): String =
 private fun render(component: RichTextComponent): String = when (component) {
     is PlainText -> component.text
     is InternalLink -> component.linkText ?: component.pageTitle
-    is WikipediaLink -> component.pageTitle
+    is WikipediaLink -> component.linkText ?: component.pageTitle
     is CursiveBlock -> renderComponents(component.body.components)
     is KTemplate -> renderKTemplate(component)
     is CompoundRichTextComponent -> renderComponents(component.components)
@@ -32,15 +32,17 @@ private fun render(component: RichTextComponent): String = when (component) {
 
 /**
  * The spec's bracket rule: only KTemplate/Kontext renders as a bracketed context tag
- * (the first part resolves through [KontextShortcutMapper]); trailing parts, their
- * separators and the suffix render as plain text.
+ * (the first part resolves through [KontextShortcutMapper]); every part's separator,
+ * the trailing parts and the suffix render as plain text after it.
  */
 private fun renderKTemplate(template: KTemplate): String {
     val parts = template.parts()
-    val contextTag = parts.firstOrNull()?.let { bracketContext(render(it.text())) } ?: ""
+    val head = parts.firstOrNull()?.let {
+        bracketContext(render(it.text())) + it.separator()?.let(::render).orEmpty()
+    } ?: ""
     val rest = parts.drop(1)
         .joinToString("") { render(it.text()) + it.separator()?.let(::render).orEmpty() }
-    return contextTag + rest + template.suffix()?.let(::render).orEmpty()
+    return head + rest + template.suffix()?.let(::render).orEmpty()
 }
 
 private fun bracketContext(rawContext: String): String {

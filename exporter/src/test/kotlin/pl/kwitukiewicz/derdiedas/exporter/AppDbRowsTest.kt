@@ -63,6 +63,20 @@ class AppDbRowsTest {
     }
 
     @Test
+    fun `entry whose lemma appears in no nominative cell still yields its lemma row`() {
+        val familyName = substantivs("Boot")[2]
+        val rows = formRows(familyName, 3)
+        assertEquals(1, rows.size)
+        val lemmaOnly = rows[0]
+        assertEquals("Boot", lemmaOnly.form)
+        assertEquals(foldForm("Boot"), lemmaOnly.formFolded)
+        assertEquals(3L, lemmaOnly.entryId)
+        assertEquals("Singular", lemmaOnly.numerus)
+        assertEquals("Nominativ", lemmaOnly.kasus)
+        assertTrue(lemmaOnly.isLemma)
+    }
+
+    @Test
     fun `pages without nouns produce no entry rows`() {
         val adjectivePage = """
             == Wandern ({{Sprache|Deutsch}}) ==
