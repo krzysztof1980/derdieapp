@@ -1,5 +1,6 @@
 pluginManagement {
     repositories {
+        google()
         mavenCentral()
         gradlePluginPortal()
     }
@@ -7,6 +8,7 @@ pluginManagement {
 
 dependencyResolutionManagement {
     repositories {
+        google()
         mavenCentral()
     }
 }
@@ -15,4 +17,4 @@ rootProject.name = "derdieapp"
 
 include(":core")
 include(":exporter")
-// include(":app") // :app added in Task 4
+include(":app")
