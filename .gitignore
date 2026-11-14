@@ -1,0 +1,6 @@
+.gradle/
+**/build/
+.kotlin/
+.idea/
+app/src/main/assets/nouns.db
+.superpowers/

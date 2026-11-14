@@ -1,0 +1,14 @@
+# foldForm origin vectors: input<TAB>expected. '#' starts a comment.
+# Decomposed twins (base + U+0308) prove NFC normalization runs before folding.
+Boot	boot
+Ähnlichkeit	aehnlichkeit
+Ähnlichkeit	aehnlichkeit
+Öls	oels
+Öls	oels
+üben	ueben
+üben	ueben
+Straße	strasse
+GRÜSSE	gruesse
+ẞ	ss
+Wasserfahrzeug	wasserfahrzeug
+3	3
