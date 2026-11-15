@@ -79,8 +79,9 @@ private fun meta(builtFrom: String) = mapOf(
 )
 
 /**
- * SHA-256 hex of the `:core` fold-vectors resource BYTES — the app compares this against
- * the `fold_vectors.txt` shipped beside `nouns.db` to prove both sides fold identically.
+ * SHA-256 hex of the `:core` fold-vectors resource BYTES, stamped into `meta` for offline
+ * forensics of asset-vs-jar vector drift. The app itself does not verify this stamp:
+ * debug builds catch behavior-relevant drift via FoldSelfCheck's whole-forms fold scan.
  */
 fun foldVectorsSha256(): String {
     val bytes = NounsSchema::class.java.classLoader
