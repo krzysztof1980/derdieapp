@@ -42,20 +42,12 @@ jobs:
       - name: Stage wiktiopeggynary:1.0-SNAPSHOT into mavenLocal
         run: |
           set -eo pipefail
-          clone_and_publish() { # $1 repo, $2 dir — gradle output goes to annotations,
-            # because anonymous log downloads 404 and the annotations are all we can read.
+          clone_and_publish() { # $1 repo, $2 dir
             git clone --depth 1 "https://github.com/krzysztof1980/$1.git" "$RUNNER_TEMP/$2"
-            local log
-            if ! log=$(cd "$RUNNER_TEMP/$2" && chmod +x gradlew && JAVA_HOME="$JAVA_HOME_25_X64" ./gradlew --no-daemon publishToMavenLocal 2>&1); then
-              echo "$log" | tail -n 12 | while IFS= read -r line; do
-                echo "::error::[$1] ${line//$'\r'/}"
-              done
-              return 1
-            fi
+            (cd "$RUNNER_TEMP/$2" && chmod +x gradlew && JAVA_HOME="$JAVA_HOME_25_X64" ./gradlew --no-daemon -q publishToMavenLocal)
           }
           clone_and_publish wiktionary-dump-browser dump-browser
           clone_and_publish wiktio-peggy-nary wiktio-peggy-nary
-          ls ~/.m2/repository/pl/kwitukiewicz/wiktiopeggynary/1.0-SNAPSHOT/ | head -3
 
       # The SDK is preinstalled on ubuntu-latest runners; this action is here to accept
       # licenses deterministically so AGP may auto-download whatever platform/build-tools
