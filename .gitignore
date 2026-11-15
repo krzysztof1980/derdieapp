@@ -4,6 +4,6 @@ local.properties
 .kotlin/
 .idea/
 # The ~93 MiB dictionary asset ships via the release pipeline, never via git.
-app/src/main/assets/
+app/src/main/assets/nouns.db*
 .superpowers/
 *.log

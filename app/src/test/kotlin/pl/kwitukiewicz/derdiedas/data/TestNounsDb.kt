@@ -75,6 +75,9 @@ object TestNounsDb {
         FormRow("müller", 7, "Singular", "Nominativ", isLemma = true),
         FormRow("mueller", 7, "Singular", "Nominativ", isLemma = false),
         FormRow("kevin", 8, "Singular", "Nominativ", isLemma = true),
+        // Escape-discriminator for the prefix query (Task 5 review round 1): a real form
+        // containing the ESCAPE character, so a backslash prefix has a positive match to find.
+        FormRow("ke\\vin", 8, null, null, isLemma = false),
     )
 
     /**
@@ -91,17 +94,19 @@ object TestNounsDb {
         poison: Boolean = false,
         unknownGender: Boolean = false,
         name: String = "nouns.db",
+        metaPadBytes: Int = 0,
     ): Path {
         val file = dir.resolve(name)
         DriverManager.getConnection("jdbc:sqlite:$file").use { db ->
             db.autoCommit = false
             db.createStatement().use { statement -> NounsSchema.DDL.forEach { statement.execute(it) } }
             db.prepareStatement("INSERT INTO meta(key, value) VALUES (?,?)").use { insert ->
-                listOf(
+                (listOf(
                     NounsSchema.META_SCHEMA_VERSION to schemaVersion,
                     NounsSchema.META_BUILT_FROM to "test",
                     NounsSchema.META_BUILT_AT to builtAt,
-                ).forEach { (key, value) ->
+                ) + if (metaPadBytes > 0) listOf("review_pad" to "x".repeat(metaPadBytes)) else emptyList())
+                    .forEach { (key, value) ->
                     insert.setString(1, key)
                     insert.setString(2, value)
                     insert.addBatch()

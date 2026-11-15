@@ -4,6 +4,7 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import pl.kwitukiewicz.derdiedas.BuildConfig
 import pl.kwitukiewicz.derdiedas.core.NounsSchema
+import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
@@ -42,13 +43,19 @@ class WordsDb(
     fun open(): SQLiteDatabase {
         seedIfNeeded()
         val db = SQLiteDatabase.openDatabase(databaseFile().absolutePath, null, SQLiteDatabase.OPEN_READONLY)
-        checkSchemaVersion(db)
-        if (BuildConfig.DEBUG) verifyFoldConsistency(db)
+        try {
+            checkSchemaVersion(db)
+            if (BuildConfig.DEBUG) verifyFoldConsistency(db)
+        } catch (failure: Throwable) {
+            db.close() // the caller never learns of the handle on the throwing paths
+            throw failure
+        }
         return db
     }
 
     private fun seedIfNeeded() {
         val target = databaseFile()
+        target.parentFile?.let(::sweepStrandedCopies)
         val assetStamp = assetBuiltAt()
         val stamped = prefs().getString(KEY_BUILT_AT, null)
         if (target.exists() && assetStamp != null && assetStamp == stamped) return
@@ -57,12 +64,31 @@ class WordsDb(
         prefs().edit().putString(KEY_BUILT_AT, builtAtOf(target)).apply()
     }
 
+    /**
+     * Removes seed copies orphaned by a process killed mid-copy — a SIGKILL during the
+     * ~93 MiB gunzip leaves `nouns.db.<random>.tmp` siblings nothing ever revisits, and
+     * each killed attempt strands another. Deletion races are fine: whoever is writing a
+     * sibling today renames over us tomorrow.
+     */
+    private fun sweepStrandedCopies(dir: File) {
+        dir.listFiles { file -> file.name.startsWith("$DB_NAME.") && file.name.endsWith(".tmp") }
+            ?.forEach { stranded -> runCatching(stranded::delete) }
+    }
+
     private fun copyAssetTo(target: File) {
         val dir = target.parentFile ?: error("no databases dir on this device")
         dir.mkdirs()
         val tmp = File.createTempFile("${target.name}.", ".tmp", dir)
         try {
-            inflatingIfGzipped(openAsset(assetName)).use { it.copyTo(FileOutputStream(tmp).buffered()) }
+            FileOutputStream(tmp).use { disk ->
+                val buffered = BufferedOutputStream(disk)
+                inflatingIfGzipped(openAsset(assetName)).use { input -> input.copyTo(buffered) }
+                // copyTo neither flushes nor closes its sink: without this, a size not
+                // dividing the 8 KiB buffer loses its tail — a silently truncated db that
+                // still stamps fine (meta lives on the first pages) and then serves forever.
+                buffered.flush()
+                disk.fd.sync() // data must reach the medium before the name appears
+            }
             check(tmp.renameTo(target)) { "cannot move the freshly copied $assetName into place" }
         } catch (failure: Throwable) {
             tmp.delete()
