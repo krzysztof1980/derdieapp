@@ -91,7 +91,13 @@ fun main(args: Array<String>) {
     println("entries=${entries.size} forms=${forms.size} size=${Files.size(db) / 1024} KiB")
 }
 
-/** The app verifies its bundled vectors against the `fold_vectors_sha256` meta stamp. */
+/**
+ * Publishes the fold-vectors copy beside the db. Nothing in any app variant verifies
+ * it at runtime: the `fold_vectors_sha256` meta stamp is kept for offline forensics —
+ * proving a shipped asset and a shipped jar were folded from the same bytes. Real fold
+ * drift is caught in debug builds instead, where the app scans the shipped `forms`
+ * corpus against its own fold function (FoldSelfCheck) and refuses to hide a mismatch.
+ */
 private fun copyFoldVectorsBeside(db: Path) {
     Files.createDirectories(db.parent) // runs before writeDb now, so the out dir may not exist yet
     val bytes = NounsSchema::class.java.classLoader

@@ -13,6 +13,8 @@ import androidx.compose.ui.test.waitUntilExactlyOneExists
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -74,6 +76,45 @@ class SearchScreenTest {
         type("xyzq")
         compose.waitUntilExactlyOneExists(hasTestTag(UiTags.NO_RESULT), SETTLE_TIMEOUT_MS)
         compose.assertTextContainsViaSemantics(UiTags.NO_RESULT, "xyzq")
+    }
+
+    @Test
+    fun noResultQuotesTheQueryItWasComputedForNotTheFieldText() {
+        // Frozen clock: while the extended query sits in its debounce window, the no-result
+        // row must keep quoting the search that produced it — never name ahead.
+        compose.mainClock.autoAdvance = false
+        showSearch()
+        compose.mainClock.advanceTimeByFrame()
+        val field = compose.onNode(hasSetTextAction())
+
+        field.performTextReplacement("xyz")
+        compose.awaitTag(UiTags.NO_RESULT)
+        compose.assertTextContainsViaSemantics(UiTags.NO_RESULT, "\"xyz\"")
+
+        field.performTextReplacement("xyzq") // one frame recomposes the field…
+        compose.mainClock.advanceTimeByFrame()
+        val quoted = compose.semanticsTexts(UiTags.NO_RESULT).single()
+        assertTrue("expected the settled 'xyz' quote, got '$quoted'", "\"xyz\"" in quoted)
+        assertFalse("'xyzq' must not be quoted before its lookup settles: $quoted", "xyzq" in quoted)
+
+        // …the debounce then settles on the extension — slice-pumped like the stale tests
+        compose.awaitSemanticsText(UiTags.NO_RESULT, "\"xyzq\"")
+    }
+
+    @Test
+    fun dictionaryLoaderFailureLandsOnPlainErrorScreenNotCrash() {
+        // A foreign schema version — the planned guard against shipping a db the app's
+        // NounsSchema cannot read — must surface as text, not as a launch crash.
+        compose.setContent {
+            SearchScreen(engineLoader = { throw IllegalStateException("schema version 99 does not equal 1") })
+        }
+        compose.awaitTag(UiTags.DICTIONARY_ERROR)
+        val error = compose.semanticsTexts(UiTags.DICTIONARY_ERROR).single()
+        assertTrue("expected the dictionary mention in '$error'", "dictionary could not be loaded" in error)
+        assertFalse("no stack trace on screen: $error", "IllegalStateException" in error)
+        assertFalse("no internals on screen: $error", "schema version 99" in error)
+        compose.onNodeWithTag(UiTags.WASH_COLOR).assertDoesNotExist() // no wash for a refused dictionary
+        compose.onNodeWithTag(UiTags.WORD).assertDoesNotExist()
     }
 
     @Test

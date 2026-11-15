@@ -1,5 +1,6 @@
 package pl.kwitukiewicz.derdiedas.data
 
+import pl.kwitukiewicz.derdiedas.core.FakeWordRepository
 import pl.kwitukiewicz.derdiedas.core.NounsSchema
 import pl.kwitukiewicz.derdiedas.core.foldForm
 import java.nio.file.Path
@@ -105,6 +106,8 @@ object TestNounsDb {
                     NounsSchema.META_SCHEMA_VERSION to schemaVersion,
                     NounsSchema.META_BUILT_FROM to "test",
                     NounsSchema.META_BUILT_AT to builtAt,
+                    // row-for-row mirror of FakeWordRepository.META
+                    NounsSchema.META_FOLD_VECTORS_SHA256 to FakeWordRepository.DUMMY_FOLD_VECTORS_SHA256,
                 ) + if (metaPadBytes > 0) listOf("review_pad" to "x".repeat(metaPadBytes)) else emptyList())
                     .forEach { (key, value) ->
                     insert.setString(1, key)

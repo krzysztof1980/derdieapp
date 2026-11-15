@@ -84,6 +84,7 @@ dependencies {
     // Test scope only: fixtures are written over JDBC; production reads stay on android.database.sqlite.
     testImplementation(libs.sqlite.jdbc)
 
+    // For the device-smoke instrumented pass (README checklist).
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation(libs.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.test.junit)

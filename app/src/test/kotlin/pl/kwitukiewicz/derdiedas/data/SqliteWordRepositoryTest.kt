@@ -12,6 +12,7 @@ import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
+import pl.kwitukiewicz.derdiedas.core.FakeWordRepository
 import pl.kwitukiewicz.derdiedas.core.Gender
 import pl.kwitukiewicz.derdiedas.core.Kind
 import pl.kwitukiewicz.derdiedas.core.NounsSchema
@@ -111,6 +112,7 @@ class SqliteWordRepositoryTest {
                 NounsSchema.META_SCHEMA_VERSION to "1",
                 NounsSchema.META_BUILT_FROM to "test",
                 NounsSchema.META_BUILT_AT to "t1",
+                NounsSchema.META_FOLD_VECTORS_SHA256 to FakeWordRepository.DUMMY_FOLD_VECTORS_SHA256,
             ),
             repo.meta(),
         )

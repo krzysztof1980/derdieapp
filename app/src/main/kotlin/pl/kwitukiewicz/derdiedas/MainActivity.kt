@@ -37,7 +37,8 @@ class MainActivity : ComponentActivity() {
  * The process-wide database handle: the engine and the meta stamps are opened once, on
  * whichever IO thread asks first, and every later caller — including every Activity
  * recreation, since a composition-`remember`ed loader would otherwise re-open the handle
- * on each rotation — gets the cached pair back under one lock.
+ * on each rotation — gets the cached pair back under one lock. A failed open is never
+ * cached: the dictionary is simply refused, and the next launch or composition retries.
  */
 private object Dictionary {
 

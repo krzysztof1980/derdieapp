@@ -36,10 +36,49 @@ class WashPaletteTest {
 
     @Test
     fun accentHexesArePinned() {
-        assertEquals("FF2F6BD8", argb(WashPalette.accent(Gender.MASKULINUM)))
-        assertEquals("FFD1493C", argb(WashPalette.accent(Gender.FEMININUM)))
-        assertEquals("FF2E8B57", argb(WashPalette.accent(Gender.NEUTRUM)))
-        assertEquals("FF919296", argb(WashPalette.accent(Gender.UTRUM)))
+        assertEquals("FF235ABC", argb(WashPalette.accent(Gender.MASKULINUM, dark = false)))
+        assertEquals("FFAB3428", argb(WashPalette.accent(Gender.FEMININUM, dark = false)))
+        assertEquals("FF236B43", argb(WashPalette.accent(Gender.NEUTRUM, dark = false)))
+        assertEquals("FF5E5E62", argb(WashPalette.accent(Gender.UTRUM, dark = false)))
+        assertEquals("FF6F99E4", argb(WashPalette.accent(Gender.MASKULINUM, dark = true)))
+        assertEquals("FFDE7E75", argb(WashPalette.accent(Gender.FEMININUM, dark = true)))
+        assertEquals("FF39AD6C", argb(WashPalette.accent(Gender.NEUTRUM, dark = true)))
+        assertEquals("FF98989C", argb(WashPalette.accent(Gender.UTRUM, dark = true)))
+    }
+
+    @Test
+    fun mutedHexIsPinned() {
+        assertEquals("FF6B6C71", argb(WashPalette.onWashMuted(dark = false)))
+        assertEquals("FF87888D", argb(WashPalette.onWashMuted(dark = true)))
+    }
+
+    /**
+     * The full matrix: every group's accent and the muted un-selected color over every
+     * wash, both sides, each >= 4.5:1 — an unselected toggle segment or suggestion-row
+     * article can land on any wash, so no pairing is exempt.
+     */
+    @Test
+    fun accentAndMutedMeetWcagAaOnEveryWash() {
+        val groups = listOf(Gender.MASKULINUM, Gender.FEMININUM, Gender.NEUTRUM, Gender.UTRUM)
+        for (dark in listOf(false, true)) {
+            for (backdrop in groups) {
+                val washHex = hex(WashPalette.wash(backdrop, dark))
+                for (text in groups) {
+                    val ratio = contrast(hex(WashPalette.accent(text, dark)), washHex)
+                    assertTrue(
+                        "accent($text, dark=$dark) on wash($backdrop, dark=$dark) is " +
+                            "${"%.2f".format(ratio)} < 4.5",
+                        ratio >= 4.5,
+                    )
+                }
+                val muted = contrast(hex(WashPalette.onWashMuted(dark)), washHex)
+                assertTrue(
+                    "onWashMuted(dark=$dark) on wash($backdrop, dark=$dark) is " +
+                        "${"%.2f".format(muted)} < 4.5",
+                    muted >= 4.5,
+                )
+            }
+        }
     }
 
     @Test

@@ -41,6 +41,7 @@ internal object UiTags {
     const val FORM_NOTE = "formNote"
     const val SUGGEST_ROW = "suggestRow"
     const val NO_RESULT = "noResult"
+    const val DICTIONARY_ERROR = "dictionaryError"
     const val TOGGLE = "toggle"
     const val SURNAME_FOOTER = "surnameFooter"
     const val SURNAME_ENTRY = "surnameEntry"
@@ -84,7 +85,7 @@ fun CandidateDetails(candidate: Candidate, dark: Boolean, modifier: Modifier = M
     val entry = candidate.entry
     val washGender = washGenderKey(entry.genders)
     val ink = WashPalette.onWash(washGender, dark)
-    val accent = WashPalette.accent(washGender)
+    val accent = WashPalette.accent(washGender, dark)
     Column(modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
         Text(
             text = articlesText(entry.genders),
@@ -138,6 +139,7 @@ fun CandidateDetails(candidate: Candidate, dark: Boolean, modifier: Modifier = M
 @Composable
 fun SuggestionRows(
     entries: List<Entry>,
+    dark: Boolean,
     modifier: Modifier = Modifier,
     onPick: (String) -> Unit,
 ) {
@@ -159,7 +161,7 @@ fun SuggestionRows(
                 Text(
                     text = articlesText(entry.genders),
                     style = MaterialTheme.typography.titleMedium,
-                    color = WashPalette.accent(washGenderKey(entry.genders)),
+                    color = WashPalette.accent(washGenderKey(entry.genders), dark),
                 )
             }
         }

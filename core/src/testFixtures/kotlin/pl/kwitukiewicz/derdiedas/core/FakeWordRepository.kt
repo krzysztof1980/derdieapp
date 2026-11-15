@@ -115,10 +115,15 @@ class FakeWordRepository(
             Row("ke\\vin", 8, null, null, isLemma = false),
         )
 
+        /** Fixture stand-in for the exporter's real 64-hex stamp (row-for-row with TestNounsDb). */
+        const val DUMMY_FOLD_VECTORS_SHA256 =
+            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+
         val META: Map<String, String> = mapOf(
             NounsSchema.META_SCHEMA_VERSION to NounsSchema.VERSION,
             NounsSchema.META_BUILT_AT to "t1",
             NounsSchema.META_BUILT_FROM to "test",
+            NounsSchema.META_FOLD_VECTORS_SHA256 to DUMMY_FOLD_VECTORS_SHA256,
         )
     }
 }

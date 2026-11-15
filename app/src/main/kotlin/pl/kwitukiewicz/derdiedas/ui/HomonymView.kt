@@ -36,7 +36,7 @@ fun HomonymDetails(
         CandidateDetails(candidates[selectedIndex], dark)
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             candidates.forEachIndexed { index, candidate ->
-                val accent = WashPalette.accent(washGenderKey(candidate.entry.genders))
+                val accent = WashPalette.accent(washGenderKey(candidate.entry.genders), dark)
                 val selected = index == selectedIndex
                 Text(
                     text = articlesText(candidate.entry.genders),
@@ -46,7 +46,7 @@ fun HomonymDetails(
                         .padding(horizontal = 16.dp, vertical = 10.dp),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                    color = if (selected) accent else accent.copy(alpha = 0.45f),
+                    color = if (selected) accent else WashPalette.onWashMuted(dark),
                 )
             }
         }

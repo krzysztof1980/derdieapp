@@ -61,8 +61,11 @@ first launch. Steps name their repo; all relative paths are from that repo's roo
 
    ```sh
    # derdieapp/
-   ./gradlew :exporter:run --args="--out build/export --dump <index-name> --es-user elastic:<pass>"
+   ./gradlew :exporter:run --args="--out build/export --dump dewiktionary-20260901-pages-articles-multistream.xml --es-user elastic:<pass>"
    ```
+
+   `--dump` takes the dump FILE name; it lands verbatim in `meta.built_from` and is what
+   the app's About dialog attributes.
 
 3. Still `derdieapp/` root — gzip the one file that is an app asset:
 
@@ -75,9 +78,11 @@ first launch. Steps name their repo; all relative paths are from that repo's roo
    The name must end `.gzip`, not `.gz`: AGP ≥ 9 silently inflates `.gz` assets at merge
    time, which would hand the app a plain file named `nouns.db`. The exporter also writes
    `fold_vectors.txt` beside the database; it needs no copying step — the app's vectors
-   ship as the `:core` jar resource they were hashed from at export time, and the DB
-   carries that hash so any drift between the two shipped copies fails loudly at first
-   launch of a debug build.
+   ship as the `:core` jar resource they were hashed from at export time. The app does not
+   verify that hash on launch: the `fold_vectors_sha256` stamp is kept for offline
+   forensics, matching a shipped asset to a shipped jar. Actual fold drift is caught in
+   debug builds, where the app scans the shipped `forms` corpus with its own fold function
+   and fails loudly on the first drifted form.
 
 ### Launcher icon
 
@@ -96,7 +101,7 @@ needs eyes and a thumb:
 - `Mueller` → folded match on *die Müller*: the `Mueller`/`Müller` → `mueller` key
   convergence is pinned by `FoldTest`; the device step exercises the lane rules on top.
 - `zeit` → answer with the surname footer lane.
-- `eltern` → *die Elten*, die + note.
+- `eltern` → *die Eltern*, die + note.
 - `virus` → both genders accepted (`das/der`), **no** gender toggle anywhere on screen.
 - `xyz` → no-result row quoting the typed text.
 - Landscape rotation keeps the query (and, after it settles, the same answer — the
