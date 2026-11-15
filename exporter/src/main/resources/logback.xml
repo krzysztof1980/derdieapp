@@ -1,0 +1,13 @@
+<configuration>
+    <!-- The wiktio jar ships its own logback.xml; this module ships first on the
+         classpath, so this file wins: console only, no stray file appenders. -->
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} %-5level %logger{24} - %msg%n</pattern>
+        </encoder>
+    </appender>
+    <logger name="pl.kwitukiewicz.derdiedas" level="${DERDIEDAS_LOG:-INFO}"/>
+    <root level="WARN">
+        <appender-ref ref="STDOUT"/>
+    </root>
+</configuration>

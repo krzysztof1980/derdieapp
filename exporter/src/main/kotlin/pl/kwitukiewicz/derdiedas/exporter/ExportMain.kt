@@ -1,0 +1,102 @@
+package pl.kwitukiewicz.derdiedas.exporter
+
+import pl.kwitukiewicz.derdiedas.core.NounsSchema
+import wiktiopeggynary.model.WiktionaryEntrySerializer
+import wiktiopeggynary.model.substantiv.Substantiv
+import java.nio.file.Files
+import java.nio.file.Path
+import kotlin.system.exitProcess
+import kotlin.system.measureTimeMillis
+
+private val log = org.slf4j.LoggerFactory.getLogger("pl.kwitukiewicz.derdiedas.exporter.ExportMain")
+
+/**
+ * Turns scrolled index documents into the two DB tables.
+ *
+ * ES delivers in arbitrary order, so the docs are first sorted by their `_id` string —
+ * fixed-width zero-padded ids make that the page order — and `pageOrder` is the rank of
+ * each DOC in that order (each document carries exactly one entry, so no grouping by id
+ * prefix is needed). A document whose entry has no genders contributes neither an
+ * [EntryRow] nor any [FormRow], and grants no id: form entry ids stay exactly the
+ * 1-based positions of [EntryRow] in the returned list, which is the identity
+ * [writeDb] inserts under.
+ */
+fun reduce(docs: List<Pair<String, String>>): Pair<List<EntryRow>, List<FormRow>> {
+    val serializer = WiktionaryEntrySerializer()
+    val entries = ArrayList<EntryRow>(docs.size)
+    val forms = ArrayList<FormRow>(docs.size * 3)
+    var nonNoun = 0
+    var noGender = 0
+    docs.sortedBy { (id, _) -> id }.forEachIndexed { rank, (id, json) ->
+        val entry = try {
+            serializer.deserializeWiktionaryEntry(json, Substantiv::class.java)
+        } catch (badDoc: Exception) {
+            throw IllegalStateException("undecodable _source for doc '$id'", badDoc)
+        }
+        if (entry !is Substantiv) {
+            log.debug("doc {} is {}, not a Substantiv", id, entry?.javaClass?.simpleName)
+            nonNoun++
+            return@forEachIndexed
+        }
+        entryRow(entry, rank)?.let { row ->
+            val entryId = entries.size + 1L
+            entries += row
+            forms += formRows(entry, entryId)
+        } ?: run {
+            log.debug("doc {} ({}) has no gender", id, entry.lemma)
+            noGender++
+        }
+    }
+    log.info(
+        "reduced {} docs: entries={} nonNoun={} noGender={}",
+        docs.size, entries.size, nonNoun, noGender,
+    )
+    return entries to forms
+}
+
+/** `--out <dir> [--dump <name>] [--es-user user:pass]`: scrollAll → reduce → writeDb. */
+fun main(args: Array<String>) {
+    var out = "appdb"
+    var dump = ES_INDEX
+    var esUser = "elastic:changeme"
+    var i = 0
+    while (i < args.size) {
+        when (val option = args[i]) {
+            "--out" -> { out = args[++i] }
+            "--dump" -> { dump = args[++i] }
+            "--es-user" -> { esUser = args[++i] }
+            else -> {
+                System.err.println("usage: ExportMain [--out <dir>] [--dump <name>] [--es-user <user:pass>]")
+                exitProcess(2)
+            }
+        }
+        i++
+    }
+
+    val docs = ArrayList<Pair<String, String>>(170_000)
+    val scrollMillis = measureTimeMillis { scrollAll("localhost", esUser) { id, json -> docs += id to json } }
+    log.info("scrolled {} docs in {} s", docs.size, scrollMillis / 1_000)
+
+    val (entries, forms) = reduce(docs)
+    if (entries.isEmpty()) {
+        System.err.println("entries=0 — nothing exported")
+        exitProcess(1)
+    }
+
+    val outDir = Path.of(out)
+    val db = outDir.resolve("nouns.db")
+    writeDb(entries, forms, db, dump)
+    copyFoldVectorsBeside(db)
+
+    println("entries=${entries.size} forms=${forms.size} size=${Files.size(db) / 1024} KiB")
+}
+
+/** The app verifies its bundled vectors against the `fold_vectors_sha256` meta stamp. */
+private fun copyFoldVectorsBeside(db: Path) {
+    val bytes = NounsSchema::class.java.classLoader
+        .getResourceAsStream(NounsSchema.FOLD_VECTORS_RESOURCE)
+        ?.readBytes()
+        ?: error("missing classpath resource ${NounsSchema.FOLD_VECTORS_RESOURCE}")
+    Files.write(db.resolveSibling(NounsSchema.FOLD_VECTORS_RESOURCE), bytes)
+}
+
