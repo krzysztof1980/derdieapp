@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
+import android.view.Window
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -25,6 +26,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // The app carries no manifest theme, and the platform default has an action bar —
+        // it surfaced as a dark gray "DerDieDas" header band above the Compose content
+        // once the window canvas went white (it was always there, formerly invisible
+        // against the dark DayNight background). Must precede setContent.
+        requestWindowFeature(Window.FEATURE_NO_TITLE)
         // Edge to edge: content (the wash) draws under transparent system bars. Both
         // styles are pinned to `light` — dark icons, transparent scrims — because the
         // app is single-appearance (WashPalette.appLooksDark): the bar treatment must
