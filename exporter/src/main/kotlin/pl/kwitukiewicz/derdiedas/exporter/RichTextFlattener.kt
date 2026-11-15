@@ -42,8 +42,21 @@ private fun renderKTemplate(template: KTemplate): String {
     } ?: ""
     val rest = parts.drop(1)
         .joinToString("") { render(it.text()) + it.separator()?.let(::render).orEmpty() }
-    return head + rest + template.suffix()?.let(::render).orEmpty()
+    return normalizeSeparators(head + rest + template.suffix()?.let(::render).orEmpty())
 }
+
+/**
+ * Wiktionary stores the `{{K}}` field separator verbatim, so `{{K|Biologie|Medizin}}`
+ * arrives as "Biologie,Medizin" and glued the two fields in the rendered meaning
+ * ("[Biologie],Medizin:"). Device finding 2026-11-15: any `,`/`;`/`:` inside the
+ * rendered template gains one following space; a separator that already ends in a
+ * space is untouched — exactly one space between bracket fields.
+ *
+ * Scoped here (KTemplate output only), never to whole meaning lines: arbitrary text
+ * can legitimately pack a comma ("…,dass"-style quotes).
+ */
+private fun normalizeSeparators(rendered: String): String =
+    rendered.replace(Regex("([,;:])(?=\\S)"), "$1 ")
 
 private fun bracketContext(rawContext: String): String {
     val context = stripWikiMarkup(rawContext)

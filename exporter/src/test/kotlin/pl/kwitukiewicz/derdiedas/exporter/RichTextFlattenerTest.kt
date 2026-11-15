@@ -88,6 +88,26 @@ class RichTextFlattenerTest {
         assertEquals("[transitiv]; besonders: Rede", flatten(text))
     }
 
+    // Device finding 2026-11-15: {{K|Biologie|Medizin}} stores the pipe separator as a
+    // bare "," — rendering it verbatim glued the fields ("[Biologie],Medizin"). The
+    // flattener must normalize `,`/`;`/`:` separators inside its own KTemplate output
+    // (never elsewhere on the meaning line), while an already-spaced separator ("; ")
+    // stays single-spaced — pinned by the test above.
+    @Test
+    fun `KTemplate multi-field separator gains the missing space`() {
+        val text = RichText(
+            KTemplate(
+                listOf(
+                    KTemplate.Part(RichText("Biologie"), RichText(",")),
+                    KTemplate.Part(RichText("Medizin"), null),
+                ),
+                RichText(":"),
+            ),
+            PlainText(" kleinster Krankheitserreger"),
+        )
+        assertEquals("[Biologie], Medizin: kleinster Krankheitserreger", flatten(text))
+    }
+
     // Spec rule "links → their text": WikipediaLink behaves like InternalLink.
     @Test
     fun `wikipedia link renders its text falling back to the page title`() {
