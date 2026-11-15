@@ -151,10 +151,10 @@ TODO — Play Store screenshots (light + dark, 1080×1920 and 1920×1080) before
 
 ## CI
 
-`.github/workflows/ci.yml` runs `:core:test :app:testDebugUnitTest :app:assembleDebug` on
-Temurin 21 (Gradle wrapper 9.7.1 runs fine on 21; JDK 17 is installed alongside for the
-`jvmToolchain(17)` modules). `:exporter:test` is deliberately absent: it resolves the
-private `wiktiopeggynary:1.0-SNAPSHOT` from mavenLocal, and one resolution failure without
-`--continue` aborts the entire run, so including it would take `:core`/`:app` results
-down with it. **TODO:** re-add `:exporter:test` once that snapshot is staged on the
-runner or published to a fetchable repository.
+`.github/workflows/ci.yml` runs `:core:test :exporter:test :app:testDebugUnitTest
+:app:assembleDebug` on Temurin 21 (Gradle wrapper 9.7.1 runs fine on 21; JDK 17 is
+installed alongside for the `jvmToolchain(17)` modules). `:exporter:test` needs
+`wiktiopeggynary:1.0-SNAPSHOT` in mavenLocal, so the workflow first clones
+`krzysztof1980/wiktionary-dump-browser` and `krzysztof1980/wiktio-peggy-nary` (both
+public) and publishes them to mavenLocal on JDK 25 — the same staging the quick-start
+does locally. If either dependency repo goes private, the staging step needs a token.

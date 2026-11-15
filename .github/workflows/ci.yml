@@ -2,27 +2,49 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
   pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
 
-      # Temurin 21 runs the Gradle daemon (wrapper 9.7.1 runs fine on 21). JDK 17 is
-      # installed alongside because :core and :app declare jvmToolchain(17); Gradle
-      # auto-detects it. Nothing here needs JDK 25 — :exporter (the only JDK 25 module)
-      # is deliberately not built, see the note on the build step.
+      # Temurin 21 runs this repo's Gradle daemon (wrapper 9.7.1 runs fine on 21).
+      # JDK 17 is installed alongside because :core and :app declare jvmToolchain(17);
+      # Gradle auto-detects it. JDK 25 is here only for the parser staging step below —
+      # the parser declares a 25 toolchain for its class files.
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: |
+            25
             21
             17
           cache: gradle
+
+      # :exporter depends on wiktiopeggynary:1.0-SNAPSHOT, which lives in neither
+      # Maven Central nor this repo — so CI builds it from source, exactly like the
+      # README quick-start tells humans to. The parser resolves
+      # wiktionary-dump-browser:1.0-SNAPSHOT the same way, one level deeper. Plain
+      # clones to the runner temp dir keep both out of this repo's workspace; both
+      # default branches are public.
+      - name: Stage wiktiopeggynary:1.0-SNAPSHOT into mavenLocal
+        run: |
+          git clone --depth 1 https://github.com/krzysztof1980/wiktionary-dump-browser.git "$RUNNER_TEMP/dump-browser"
+          git clone --depth 1 https://github.com/krzysztof1980/wiktio-peggy-nary.git "$RUNNER_TEMP/wiktio-peggy-nary"
+          (cd "$RUNNER_TEMP/dump-browser" && chmod +x gradlew && JAVA_HOME=$JAVA_HOME_25_X64 ./gradlew --no-daemon -q publishToMavenLocal)
+          (cd "$RUNNER_TEMP/wiktio-peggy-nary" && chmod +x gradlew && JAVA_HOME=$JAVA_HOME_25_X64 ./gradlew --no-daemon -q publishToMavenLocal)
 
       # The SDK is preinstalled on ubuntu-latest runners; this action is here to accept
       # licenses deterministically so AGP may auto-download whatever platform/build-tools
@@ -30,11 +52,6 @@ jobs:
       - uses: android-actions/setup-android@v3
 
       - name: Tests + debug assemble
-        # :exporter:test is deliberately absent: it resolves
-        # wiktiopeggynary:1.0-SNAPSHOT from mavenLocal, which lives only in the private
-        # companion repo. Including it would not merely red the exporter job — without
-        # --continue, Gradle aborts the whole run as soon as that dependency resolution
-        # fails, so :core/:app results would never be produced either. Re-add
-        # :exporter:test here once the snapshot is staged on the runner or published to a
-        # fetchable repository (README "CI" tracks this TODO).
-        run: ./gradlew :core:test :app:testDebugUnitTest :app:assembleDebug
+        env:
+          JAVA_HOME: ${{ env.JAVA_HOME_21_X64 }}
+        run: ./gradlew :core:test :exporter:test :app:testDebugUnitTest :app:assembleDebug
