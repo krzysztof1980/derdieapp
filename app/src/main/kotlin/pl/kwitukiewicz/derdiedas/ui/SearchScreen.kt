@@ -79,7 +79,8 @@ import pl.kwitukiewicz.derdiedas.core.washGenderKey
  *
  * [metaProvider] supplies the exporter's meta stamps for the attribution dialog, read on
  * [Dispatchers.IO] the same way — never on the composition path. Homonym selection is
- * hoisted here (keyed on the answer object) so the wash follows the segmented article
+ * hoisted here (keyed on the query, so the choice survives rotation and a new query
+ * restarts it) so the wash follows the segmented article
  * row's choice, and the person-name lane plus the About link sit under the answer.
  */
 @Composable
@@ -163,8 +164,12 @@ fun SearchScreen(
 
     val answer = result?.answer
     // Homonym selection lives here, not inside the subview: the wash must follow the
-    // candidate on screen. A fresh answer object restarts the selection at zero.
-    var homonymSelection by remember(answer) { mutableIntStateOf(0) }
+    // candidate on screen. Keyed on the query, not the answer instance — recreation
+    // recomputes a fresh answer object, and the choice must ride through rotation:
+    // the same query yields the same deterministically ordered candidates, so the
+    // index stays valid (the getOrNull guard above stays as the backstop). A new
+    // query restarts the selection at zero, exactly as the fresh-answer object did.
+    var homonymSelection by rememberSaveable(query) { mutableIntStateOf(0) }
 
     val visibleWash = when (answer) {
         is Single -> answer.candidate.entry.genders
