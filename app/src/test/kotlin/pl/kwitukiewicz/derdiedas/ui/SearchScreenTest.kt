@@ -1,11 +1,13 @@
 package pl.kwitukiewicz.derdiedas.ui
 
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.getBoundsInRoot
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performTextInput
@@ -139,13 +141,21 @@ class SearchScreenTest {
         compose.onNodeWithTag(UiTags.WORD).assertDoesNotExist()
     }
 
+    /**
+     * The surname-footer withdrawal, pinned: `zeit` answers with the word's die entry,
+     * and no footer/lane shows the demoted person names — asserted with the OLD literal
+     * tags, since the [UiTags] constants are gone with the component, so a re-add under
+     * the old vocabulary goes red here.
+     */
     @Test
-    fun wordHomonymDemotesNameEntryToSurnameFooter() {
+    fun wordHomonymAnswersTheWordAndShowsNoSurnameLane() {
         showSearch()
         type("zeit")
         compose.waitUntilExactlyOneExists(hasTestTag(UiTags.MEANING_LINE), SETTLE_TIMEOUT_MS)
         compose.onNodeWithTag(UiTags.MEANING_LINE).assertTextEquals("(die) Zeit, Verlauf")
-        compose.waitUntilExactlyOneExists(hasTestTag(UiTags.SURNAME_FOOTER), SETTLE_TIMEOUT_MS)
+        compose.waitForIdle()
+        compose.onAllNodesWithTag("surnameFooter").assertCountEquals(0)
+        compose.onAllNodesWithTag("surnameEntry").assertCountEquals(0)
     }
 
     @Test

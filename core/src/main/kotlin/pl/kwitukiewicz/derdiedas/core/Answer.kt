@@ -18,5 +18,10 @@ data class Homonyms(val candidates: List<Candidate>, val selectedIndex: Int = 0)
 /** One answer entry with the [typedForm] the user actually typed, kept for its kasus annotation. */
 data class Candidate(val entry: Entry, val typedForm: FormHit)
 
-/** The answer plus person-name homonyms demoted to a footer, in page order. */
+/**
+ * The answer plus person-name homonyms demoted to a footer, in page order.
+ * [footerNames] is an internal lane since the surname footer left the UI
+ * (user decision 2026-11-15): the engine still guarantees persons never reach the
+ * main answer and promotes them when they are the only hits.
+ */
 data class LookupResult(val answer: Answer, val footerNames: List<Entry> = emptyList())

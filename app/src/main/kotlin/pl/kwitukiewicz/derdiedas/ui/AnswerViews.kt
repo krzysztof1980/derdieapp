@@ -27,8 +27,8 @@ import pl.kwitukiewicz.derdiedas.core.washGenderKey
 
 /**
  * The semantics-tag vocabulary pinned by the plan: Tasks 7-8 tests match nodes by these
- * exact values, so renaming one is a contract change. `toggle`, `surnameFooter`/
- * `surnameEntry` and `about`/`aboutBody` render from the Task 8 subviews.
+ * exact values, so renaming one is a contract change. `toggle` and `about`/`aboutBody`
+ * render from the Task 8 subviews.
  */
 internal object UiTags {
     const val WASH = "wash"
@@ -44,8 +44,6 @@ internal object UiTags {
     const val NO_RESULT = "noResult"
     const val DICTIONARY_ERROR = "dictionaryError"
     const val TOGGLE = "toggle"
-    const val SURNAME_FOOTER = "surnameFooter"
-    const val SURNAME_ENTRY = "surnameEntry"
     const val ABOUT = "about"
     const val ABOUT_BODY = "aboutBody"
 }

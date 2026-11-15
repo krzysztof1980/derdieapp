@@ -1,7 +1,6 @@
 package pl.kwitukiewicz.derdiedas.ui
 
 import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -20,8 +19,8 @@ import pl.kwitukiewicz.derdiedas.core.LookupEngine
 
 /**
  * Task 8's surface: the segmented article row over homonymous entries (wash, meaning and
- * notes follow the selected candidate), the expandable person-name footer lane, and the
- * About dialog's attribution. Wash expectations are derived from [WashPalette] itself so
+ * notes follow the selected candidate) and the About dialog's attribution. Wash
+ * expectations are derived from [WashPalette] itself so
  * the pin can never drift from the palette.
  */
 @RunWith(RobolectricTestRunner::class)
@@ -51,7 +50,6 @@ class AmbiguityTest {
         assertEquals(listOf("das", "der"), compose.semanticsTexts(UiTags.TOGGLE))
         compose.onNodeWithTag(UiTags.WASH_COLOR)
             .assertTextEquals(washHex(WashPalette.wash(Gender.NEUTRUM, dark = false)))
-        compose.onNodeWithTag(UiTags.SURNAME_FOOTER).assertDoesNotExist()
 
         compose.onAllNodesWithTag(UiTags.TOGGLE)[1].performClick()
         compose.waitForIdle()
@@ -60,28 +58,6 @@ class AmbiguityTest {
             .assertTextEquals(washHex(WashPalette.wash(Gender.MASKULINUM, dark = false)))
         // …and so does the detail: the der-Boot entry shows its own meaning line.
         compose.assertTextContainsViaSemantics(UiTags.MEANING_LINE, "Familienname")
-    }
-
-    @Test
-    fun surnameFooterExpandsTheDemotedNamesOnTap() {
-        showSearch()
-        compose.typeQuery("zeit")
-        compose.waitUntilExactlyOneExists(hasTestTag(UiTags.SURNAME_FOOTER), SETTLE_TIMEOUT_MS)
-        // Collapsed by default: the lane header only.
-        compose.onAllNodesWithTag(UiTags.SURNAME_ENTRY).assertCountEquals(0)
-
-        compose.onNodeWithTag(UiTags.SURNAME_FOOTER).performClick()
-        compose.waitUntilExactlyOneExists(hasTestTag(UiTags.SURNAME_ENTRY), SETTLE_TIMEOUT_MS)
-        compose.assertTextContainsViaSemantics(UiTags.SURNAME_ENTRY, "die Zeit")
-    }
-
-    @Test
-    fun lonePersonNameOpensNoSurnameLane() {
-        showSearch()
-        compose.typeQuery("müller")
-        compose.waitUntilExactlyOneExists(hasTestTag(UiTags.WORD), SETTLE_TIMEOUT_MS)
-        // Zero person names in the footer: the lane must not render at all.
-        compose.onNodeWithTag(UiTags.SURNAME_FOOTER).assertDoesNotExist()
     }
 
     @Test

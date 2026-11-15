@@ -2,7 +2,7 @@
 
 Find the gender of any German noun — `der`, `die` or `das` — from a fully offline app.
 Type a noun or an inflected form (`Mutter`, `Mueller`, `Kindern`); the answer washes in
-the article's colour, with plural forms, senses and a surname lane for ambiguous hits.
+the article's colour, with plural forms and senses.
 
 The dictionary ships inside the APK as a gzipped SQLite asset. **The app declares no
 permissions at all** — no INTERNET, no data access — and a test
@@ -99,8 +99,8 @@ needs eyes and a thumb:
 - Airplane mode: everything works (no network calls exist to fail).
 - `booten` → plural note (`das Booten`, plural `—`).
 - `Mueller` → folded match on *die Müller*: the `Mueller`/`Müller` → `mueller` key
-  convergence is pinned by `FoldTest`; the device step exercises the lane rules on top.
-- `zeit` → answer with the surname footer lane.
+  convergence is pinned by `FoldTest`; the device step exercises the answer rules on top.
+- `zeit` → *die Zeit* (surnames intentionally not shown).
 - `eltern` → *die Eltern*, die + note.
 - `virus` → both genders accepted (`das/der`), **no** gender toggle anywhere on screen.
 - `xyz` → no-result row quoting the typed text.

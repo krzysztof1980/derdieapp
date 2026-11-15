@@ -80,8 +80,10 @@ import pl.kwitukiewicz.derdiedas.core.washGenderKey
  * [metaProvider] supplies the exporter's meta stamps for the attribution dialog, read on
  * [Dispatchers.IO] the same way — never on the composition path. Homonym selection is
  * hoisted here (keyed on the query, so the choice survives rotation and a new query
- * restarts it) so the wash follows the segmented article
- * row's choice, and the person-name lane plus the About link sit under the answer.
+ * restarts it) so the wash follows the segmented article row's choice, and the About
+ * link sits under the answer. Person-name homonyms are never shown: the engine demotes
+ * them to [LookupResult.footerNames], an internal lane the UI dropped on user decision
+ * 2026-11-15.
  */
 @Composable
 fun SearchScreen(
@@ -246,9 +248,6 @@ fun SearchScreen(
                 is Suggestions -> SuggestionRows(answer.entries, dark) { query = it }
                 NoResult -> NoResultLine(resultQuery)
             }
-            result?.footerNames
-                ?.takeIf { it.isNotEmpty() } // no lane at all without demoted person names
-                ?.let { names -> SurnameFooter(names) }
             AboutLink(meta = meta, modifier = Modifier.padding(start = 12.dp))
             visibleWash?.let {
                 // Zero-size but in the semantics tree: tests assert the active wash color
