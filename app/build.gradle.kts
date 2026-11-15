@@ -31,6 +31,13 @@ android {
     }
 }
 
+// Compose/Robolectric tests share the JVM with the WordsDb seed test; the 512 MiB default
+// OOMed it once they joined (Task 5 review follow-up). AGP 9's DSL no longer exposes
+// unitTests.maxHeapSize, so the cap goes on the unit test tasks themselves.
+tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
+    maxHeapSize = "1g"
+}
+
 kotlin {
     jvmToolchain(17)
 }
@@ -45,6 +52,8 @@ dependencies {
 
     testImplementation(libs.junit4)
     testImplementation(libs.robolectric)
+    testImplementation(libs.compose.ui.test.junit4)
+    testImplementation(testFixtures(project(":core")))
     // Test scope only: fixtures are written over JDBC; production reads stay on android.database.sqlite.
     testImplementation(libs.sqlite.jdbc)
 

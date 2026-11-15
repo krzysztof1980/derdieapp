@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Launcher label; Task 9's instrumented test pins the value 'derdieapp'. -->
+    <string name="app_name">derdieapp</string>
+    <string name="query_hint">German noun or form</string>
+    <string name="plural_forms">Plural: %1$s</string>
+    <string name="plural_only">Plural only</string>
+    <string name="no_result">No entry for \"%1$s\"</string>
+    <string name="surname_footer">Also a person name: %1$s</string>
+    <string name="homonym_toggle">Show %1$s %2$s instead</string>
+</resources>
