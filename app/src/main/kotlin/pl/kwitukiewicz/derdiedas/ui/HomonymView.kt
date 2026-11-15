@@ -33,7 +33,8 @@ fun HomonymDetails(
 ) {
     val candidates = homonyms.candidates
     Column(modifier) {
-        CandidateDetails(candidates[selectedIndex], dark)
+        // Spec UX-5 / 2026-11-15 device fix: the segmented row is ABOVE the word block —
+        // meaning length differs per candidate, so a row below would jump on every swap.
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             candidates.forEachIndexed { index, candidate ->
                 val accent = WashPalette.accent(washGenderKey(candidate.entry.genders), dark)
@@ -50,5 +51,6 @@ fun HomonymDetails(
                 )
             }
         }
+        CandidateDetails(candidates[selectedIndex], dark)
     }
 }

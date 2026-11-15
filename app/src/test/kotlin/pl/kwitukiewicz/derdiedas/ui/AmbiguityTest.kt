@@ -3,10 +3,12 @@ package pl.kwitukiewicz.derdiedas.ui
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import org.junit.Assert.assertTrue
 import androidx.compose.ui.test.waitUntilExactlyOneExists
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -70,6 +72,41 @@ class AmbiguityTest {
         // The dump stamp rides in on the async meta produceState — await it, don't race it.
         compose.awaitSemanticsText(UiTags.ABOUT_BODY, "de.wiktionary.org, dump test")
         compose.assertTextContainsViaSemantics(UiTags.ABOUT_BODY, "wiktiopeggynary")
+    }
+
+    @Test
+    fun toggleRowSitsAboveTheWordSoSwappingNeverMovesIt() {
+        showSearch()
+        compose.typeQuery("boot")
+        compose.awaitTag(UiTags.TOGGLE)
+        // Spec UX-5: the segmented row is ABOVE the word. Asserted as geometry (not just
+        // tree order) so a future layout pass cannot silently reintroduce the vertical
+        // jump the author felt on-device: meaning length differs per candidate, so a
+        // toggle below the word would move every time the selection changes.
+        // One node per segment; they share a row, so the first segment's top is the row's.
+        val toggleTop = compose.onAllNodesWithTag(UiTags.TOGGLE)[0]
+            .fetchSemanticsNode().boundsInRoot.top
+        val wordTop = compose.onNodeWithTag(UiTags.WORD).fetchSemanticsNode().boundsInRoot.top
+        assertTrue(
+            "toggle (y=$toggleTop) must render above the word (y=$wordTop)",
+            toggleTop < wordTop,
+        )
+    }
+
+    @Test
+    fun clearButtonAppearsWithTextAndClearsTheQuery() {
+        showSearch()
+        // Blank field: no affordance to clear.
+        compose.onNodeWithTag(UiTags.CLEAR_BUTTON).assertDoesNotExist()
+        compose.typeQuery("virus")
+        compose.awaitTag(UiTags.WORD)
+        compose.onNodeWithTag(UiTags.CLEAR_BUTTON).assertIsDisplayed()
+        compose.onNodeWithTag(UiTags.CLEAR_BUTTON).performClick()
+        compose.waitForIdle()
+        // Cleared: the field is empty again and the answer (and its wash) is gone —
+        // clearing must reuse the blank path (null result), not flash a NoResult for "".
+        compose.onNodeWithTag(UiTags.WORD).assertDoesNotExist()
+        compose.onNodeWithTag(UiTags.CLEAR_BUTTON).assertDoesNotExist()
     }
 
     private companion object {

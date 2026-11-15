@@ -4,6 +4,7 @@
          stays `derdieapp` — repo/app rename decision remains open until Play registration. -->
     <string name="app_name">DerDieDas</string>
     <string name="query_hint">German noun or form</string>
+    <string name="clear_query">Clear search</string>
     <string name="plural_forms">Plural: %1$s</string>
     <string name="plural_only">Plural only</string>
     <string name="no_result">No entry for \"%1$s\"</string>

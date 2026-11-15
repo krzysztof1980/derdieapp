@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -209,6 +211,7 @@ fun SearchScreen(
                 value = query,
                 onValueChange = { query = it },
                 modifier = Modifier
+                    .padding(horizontal = 16.dp) // 2026-11-15 device fix: never edge-flush
                     .fillMaxWidth()
                     .border(
                         width = 1.5.dp,
@@ -228,6 +231,26 @@ fun SearchScreen(
                         contentDescription = null, // decoration; the field's own semantics carry the input
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                },
+                trailingIcon = {
+                    // Chrome-style clear (user request 2026-11-15): only while there is
+                    // text; tap empties the field and keeps focus — the blank-query path
+                    // (null result, transparent wash) runs, never a NoResult for "".
+                    if (query.isNotEmpty()) {
+                        IconButton(
+                            onClick = {
+                                query = ""
+                                focusRequester.requestFocus()
+                            },
+                            modifier = Modifier.testTag(UiTags.CLEAR_BUTTON),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = stringResource(R.string.clear_query),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                 },
                 singleLine = true,
                 shape = fieldShape,
