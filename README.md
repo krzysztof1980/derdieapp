@@ -1,5 +1,7 @@
 # DerDieDas
 
+[![CI](https://github.com/krzysztof1980/derdieapp/actions/workflows/ci.yml/badge.svg)](https://github.com/krzysztof1980/derdieapp/actions/workflows/ci.yml)
+
 Find the gender of any German noun — `der`, `die` or `das` — from a fully offline app.
 Type a noun or an inflected form (`Mutter`, `Mueller`, `Kindern`); the answer washes in
 the article's colour, with plural forms and senses.
