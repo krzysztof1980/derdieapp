@@ -48,8 +48,13 @@ internal fun ComposeContentTestRule.awaitSemanticsText(tag: String, needle: Stri
     semanticsTexts(tag).none { needle in it }
 }
 
-/** Runs [CLOCK_SLICES] idle frames — enough rounds for a freed worker thread to race back. */
-internal fun ComposeContentTestRule.pumpFrames() = awaitWhile { false }
+/** Runs [count] idle frames — enough rounds for a freed worker thread to race back. */
+internal fun ComposeContentTestRule.pumpFrames(count: Int = CLOCK_SLICES) {
+    repeat(count) {
+        mainClock.advanceTimeBy(CLOCK_SLICE_MS)
+        waitForIdle()
+    }
+}
 
 private inline fun ComposeContentTestRule.awaitWhile(absent: () -> Boolean) {
     var slices = 0

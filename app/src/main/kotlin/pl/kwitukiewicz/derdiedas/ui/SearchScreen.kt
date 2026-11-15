@@ -20,6 +20,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -29,6 +30,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import pl.kwitukiewicz.derdiedas.R
 import pl.kwitukiewicz.derdiedas.core.Homonyms
@@ -44,9 +46,11 @@ import pl.kwitukiewicz.derdiedas.core.washGenderKey
  * answer's gender color. [engineLoader] (which copies and opens the bundled database) runs
  * once, on [Dispatchers.IO], behind a [produceState] — until it resolves the wash stays
  * blank. Every keystroke (re)starts a [DEBOUNCE_MS] grace period and takes the next
- * generation in a version counter; when the lookup finally returns from
- * [Dispatchers.Default], only the newest generation may publish — stale answers are
- * dropped instead of flashing. Results are applied back on the main thread.
+ * generation in a version counter. Typing cancels the keyed effect, so only settled
+ * queries ever dispatch, and each dispatch runs the lookup on the composition scope —
+ * supersession never cancels it: a result that lands late is dropped by the version
+ * counter alone, [Dispatchers.Default] to main, the newest generation the only one that
+ * may publish. That equality check is the sole staleness mechanism.
  *
  * [metaProvider] supplies the exporter's meta stamps for the attribution dialog, read on
  * [Dispatchers.IO] the same way — never on the composition path. Homonym selection is
@@ -62,6 +66,10 @@ fun SearchScreen(
     var query by rememberSaveable { mutableStateOf("") }
     var result by remember { mutableStateOf<LookupResult?>(null) }
     val generation = remember { mutableIntStateOf(0) }
+    // Lookups launch on the composition scope, NOT on the keyed effect below: replacing
+    // the query cancels the effect but may not cancel the dispatched lookup — cooperative
+    // cancellation would drop it for the wrong reason and hide the version counter.
+    val lookupScope = rememberCoroutineScope()
 
     val engine by produceState<LookupEngine?>(initialValue = null) {
         value = withContext(Dispatchers.IO) { engineLoader() }
@@ -76,8 +84,15 @@ fun SearchScreen(
         generation.intValue = revision
         delay(DEBOUNCE_MS)
         val engine = engine ?: return@LaunchedEffect // blank wash until the dictionary is open
-        val outcome = withContext(Dispatchers.Default) { engine.lookup(query) }
-        if (generation.intValue == revision) result = outcome
+        // Latest-wins at dispatch: this effect is the gate, so a keystroke burst never
+        // queues more than the one lookup for the settled query. Once dispatched the
+        // lookup outlives supersession; the version equality below is what drops it.
+        lookupScope.launch(Dispatchers.Default) {
+            val outcome = engine.lookup(query)
+            withContext(Dispatchers.Main) {
+                if (generation.intValue == revision) result = outcome
+            }
+        }
     }
 
     val answer = result?.answer

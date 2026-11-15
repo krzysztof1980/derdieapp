@@ -31,7 +31,8 @@ import pl.kwitukiewicz.derdiedas.core.WordRepository
  * Timing is deterministic: default-clock tests let `waitUntilExactlyOneExists` advance the
  * virtual clock through the 150 ms debounce; the frozen-clock stale test drops the
  * intermediate query before its lookup even starts, and [GatingRepository] parks a real
- * off-main lookup to exercise the drop of a result that lands after being superseded.
+ * off-main lookup so a superseded result lands late and the version equality check —
+ * the sole drop mechanism — has to be what drops it.
  * No Thread.sleep anywhere. Shared clock/semantics helpers live in `UiTestSupport.kt`.
  */
 @RunWith(RobolectricTestRunner::class)
@@ -127,13 +128,13 @@ class SearchScreenTest {
         compose.mainClock.advanceTimeBy(200) // past the debounce: the lookup starts…
         runBlocking { repo.inFlight.await() } // …and is parked mid-flight off-main
 
-        field.performTextReplacement("virus") // supersede it
-        compose.awaitSemanticsText(UiTags.WORD, "Virus") // while boot is parked, virus settles
-        compose.onNodeWithTag(UiTags.TOGGLE).assertDoesNotExist() // boot's answer never showed
+        field.performTextReplacement("virus") // supersede it — the parked lookup survives,
+        compose.awaitSemanticsText(UiTags.WORD, "Virus") // so the guard, not cancellation,
+        compose.onNodeWithTag(UiTags.TOGGLE).assertDoesNotExist() // is what drops it
 
         repo.releaseNext() // the stale boot lookup finally completes — after its moment
         compose.pumpFrames()
-        compose.onNodeWithTag(UiTags.TOGGLE).assertDoesNotExist()
+        compose.onNodeWithTag(UiTags.TOGGLE).assertDoesNotExist() // guard dropped it
         compose.onNodeWithText("Boot").assertDoesNotExist()
         compose.onNodeWithTag(UiTags.WORD).assertTextEquals("Virus")
     }

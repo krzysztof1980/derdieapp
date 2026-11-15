@@ -91,7 +91,8 @@ class AmbiguityTest {
         compose.waitUntilExactlyOneExists(hasTestTag(UiTags.ABOUT_BODY), SETTLE_TIMEOUT_MS)
         compose.assertTextContainsViaSemantics(UiTags.ABOUT_BODY, "CC BY-SA 4.0")
         compose.assertTextContainsViaSemantics(UiTags.ABOUT_BODY, "GFDL")
-        compose.assertTextContainsViaSemantics(UiTags.ABOUT_BODY, "de.wiktionary.org, dump test")
+        // The dump stamp rides in on the async meta produceState — await it, don't race it.
+        compose.awaitSemanticsText(UiTags.ABOUT_BODY, "de.wiktionary.org, dump test")
         compose.assertTextContainsViaSemantics(UiTags.ABOUT_BODY, "wiktiopeggynary")
     }
 
