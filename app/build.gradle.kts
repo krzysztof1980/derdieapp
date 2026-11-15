@@ -16,6 +16,14 @@ android {
         versionName = "0.1.0"
     }
 
+    buildTypes {
+        release {
+            isMinifyEnabled = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // signingConfig deliberately unset: unsigned release until Play App Signing is set up.
+        }
+    }
+
     buildFeatures {
         compose = true
         buildConfig = true
@@ -28,6 +36,24 @@ android {
 
     testOptions {
         unitTests.isIncludeAndroidResources = true
+    }
+}
+
+// ManifestContractTest pins the shipped offline contract against the exact merged manifest
+// that goes into each variant's APK: hand AGP's merged-manifest artifact to the test JVM as
+// a system property and order the unit-test task after its production, so the test always
+// (re)merges instead of depending on whoever ran assemble* last.
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        val mergedManifest = variant.artifacts.get(com.android.build.api.artifact.SingleArtifact.MERGED_MANIFEST)
+        val unitTestTask = "test${variant.name.replaceFirstChar(Char::uppercase)}UnitTest"
+        tasks.withType<org.gradle.api.tasks.testing.Test>().matching { it.name == unitTestTask }.configureEach {
+            dependsOn(mergedManifest)
+            // Resolved in doFirst: the artifact path is only final once the merge task ran.
+            doFirst {
+                systemProperty("derdieapp.merged.manifest", mergedManifest.get().asFile.absolutePath)
+            }
+        }
     }
 }
 

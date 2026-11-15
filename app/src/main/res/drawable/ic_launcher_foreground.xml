@@ -1,0 +1,23 @@
+<!--
+  Adaptive-icon foreground: lowercase `der` as a white stroke skeleton on transparent.
+  108x108dp viewport; every stroke cap sits >=1dp inside the 66dp circular safe zone.
+  Hand-built vector — dump-attribute (real font outlines, dumpattr) is a pre-Play TODO.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="
+            M 26.55 61.20 a 8.55 8.55 0 1 1 17.10 0 a 8.55 8.55 0 1 1 -17.10 0
+            M 43.65 37.35 L 43.65 69.75
+            M 64.10 55.15 A 8.55 8.55 0 1 0 65.45 65.48
+            M 49.50 61.20 L 66.60 61.20
+            M 72.45 52.65 L 72.45 69.75
+            M 72.45 58.95 Q 75.60 53.55 80.55 52.65" />
+</vector>

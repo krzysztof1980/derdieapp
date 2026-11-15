@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  minSdk 26: a single adaptive icon covers every supported device — no raster PNGs are
+  generated or shipped (AGP 9 accepts it with no density fallback; assembleRelease
+  verifies). The -v26 qualifier stays despite lint's ObsoleteSdkInt suggestion: AAPT2
+  silently drops this folder when written as unversioned `anydpi` (resource linking then
+  fails with `mipmap/ic_launcher not found` — checked against this exact toolchain).
+  The monochrome layer reuses the `der` strokes for Android 13 themed icons.
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+    <monochrome android:drawable="@drawable/ic_launcher_foreground" />
+</adaptive-icon>

@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Temurin 21 runs the Gradle daemon — the wrapper 9.7.1 runs fine on 21; the
+      # org.gradle.java.home pinned in gradle.properties is an absolute-path workaround
+      # for the original author's machine (JDK 25 host, KGP parser crash), does not exist
+      # on the runner, and is explicitly overridden in the build step. JDK 25 is installed
+      # alongside because :exporter declares jvmToolchain(25): it reads Java 25 class files
+      # from the published wiktio jar. setup-java makes the first entry JAVA_HOME, and
+      # Gradle's toolchain auto-detection finds the second.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: |
+            21
+            25
+          cache: gradle
+
+      # The SDK is preinstalled on ubuntu-latest runners; this action is here to accept
+      # licenses deterministically so AGP may auto-download whatever platform/build-tools
+      # 35 piece is missing. local.properties is gitignored; AGP falls back to ANDROID_HOME.
+      - uses: android-actions/setup-android@v3
+
+      - name: Tests + debug assemble
+        # Known prerequisite (open): :exporter:test resolves wiktiopeggynary:1.0-SNAPSHOT
+        # from mavenLocal. Until that jar is staged on the runner or published to a
+        # fetchable repository (companion repo is private), this step fails at dependency
+        # resolution for :exporter — the :core/:app tasks are unaffected. See README "CI".
+        run: >-
+          ./gradlew
+          -Dorg.gradle.java.home="$JAVA_HOME"
+          :core:test :exporter:test :app:testDebugUnitTest :app:assembleDebug
