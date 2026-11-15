@@ -17,8 +17,9 @@ import pl.kwitukiewicz.derdiedas.core.articlesText
 import pl.kwitukiewicz.derdiedas.core.washGenderKey
 
 /**
- * Several entries share the typed form: [selectedIndex]'s candidate renders in full above a
- * segmented article row — one [UiTags.TOGGLE] segment per candidate, in page order — and a
+ * Several entries share the typed form: a segmented article row — one [UiTags.TOGGLE]
+ * segment per candidate, in page order — sits above [selectedIndex]'s fully rendered
+ * candidate (device fix 2026-11-15: swapping never moves the word), and a
  * segment tap reports that candidate's index through [onSelect]. Selection is screen state
  * passed in, so the wash can follow the candidate on screen; the detail (meaning, notes)
  * is [selectedIndex]'s by construction.

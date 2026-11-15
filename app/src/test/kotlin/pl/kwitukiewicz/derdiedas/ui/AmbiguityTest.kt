@@ -105,7 +105,7 @@ class AmbiguityTest {
         compose.awaitTag(UiTags.WORD)
         compose.onNodeWithTag(UiTags.CLEAR_BUTTON).assertIsDisplayed()
         compose.onNodeWithTag(UiTags.CLEAR_BUTTON).performClick()
-        compose.waitForIdle()
+        compose.pumpFrames() // clear→debounce→worker lookup→publish needs real frames, not one idle
         // Cleared: the field is empty again and the answer (and its wash) is gone —
         // clearing must reuse the blank path (null result), not flash a NoResult for "".
         compose.onNodeWithTag(UiTags.WORD).assertDoesNotExist()

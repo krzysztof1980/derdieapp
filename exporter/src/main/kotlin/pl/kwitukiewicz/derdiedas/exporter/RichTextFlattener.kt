@@ -22,23 +22,35 @@ private const val SEPARATOR_CHARS = ",;:"
 /**
  * Junction after a context tag (device finding 2026-11-15): Wiktionary writes
  * `{{K|Zoologie}}:süd…` — the suffix colon closes the template and the glued text is a
- * sibling component, so [renderKTemplate]'s own normalization can never reach it. When
- * the previous component was a KTemplate and its rendering ends on a separator, the
- * sibling's leading separator run (redundant leftovers like `:`/`,` from the wikitext)
- * collapses into that separator and exactly one space follows.
+ * sibling component, so [renderKTemplate]'s own normalization can never reach it. While
+ * the context tag's tail is open (a KTemplate, optionally followed by separator/blank-only
+ * siblings), the sibling's leading separator run collapses into the tag's own separator
+ * and exactly one space follows; when the tag is suffixless, the sibling's own leading
+ * punctuation (the real separator) gains that space.
  */
 private fun renderComponents(components: List<RichTextComponent>): String = buildString {
-    var previousWasContextTag = false
+    var contextTailOpen = false
     for (component in components) {
         var rendered = render(component)
-        if (previousWasContextTag && length > 0 && this[length - 1] in SEPARATOR_CHARS) {
-            // The space is unconditional: separator-only siblings (": ", " ") collapse
-            // but the context tag still keeps its one space before the following text —
-            // dropping them to "" glued 8387 exported meanings (caught by re-export scan).
-            rendered = " " + rendered.dropWhile { it == ' ' || it in SEPARATOR_CHARS }
+        if (contextTailOpen && rendered.isNotEmpty()) {
+            if (length > 0 && this[length - 1] in SEPARATOR_CHARS) {
+                // The space is unconditional: separator-only siblings (": ", " ") collapse
+                // but the context tag still keeps its one space before the following text —
+                // dropping them to "" glued 8387 exported meanings (caught by re-export scan).
+                rendered = " " + rendered.dropWhile { it == ' ' || it in SEPARATOR_CHARS }
+            } else if (rendered.first() in SEPARATOR_CHARS) {
+                // Suffixless tag (`]` closes the template): the sibling's punctuation IS
+                // the separator — it stays, but gains the space after it.
+                val run = rendered.takeWhile { it in SEPARATOR_CHARS }
+                val rest = rendered.drop(run.length)
+                rendered = run + if (rest.isEmpty() || rest.first() == ' ') rest else " $rest"
+            }
         }
         append(rendered)
-        previousWasContextTag = component is KTemplate
+        // A punctuation/whitespace-only sibling continues the tag's tail, so the chain
+        // ([X] + ":" + word) still gets its one space at the real word.
+        val tailContinues = rendered.isNotEmpty() && rendered.all { it == ' ' || it in SEPARATOR_CHARS }
+        contextTailOpen = component is KTemplate || (contextTailOpen && tailContinues)
     }
 }
 

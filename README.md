@@ -65,14 +65,15 @@ first launch. Steps name their repo; all relative paths are from that repo's roo
    ```
 
    `--dump` takes the dump FILE name; it lands verbatim in `meta.built_from` and is what
-   the app's About dialog attributes.
+   the app's About dialog attributes. The run task's working dir is the exporter project,
+   so a relative `--out build/export` lands in `exporter/build/export/`.
 
 3. Still `derdieapp/` root — gzip the one file that is an app asset:
 
    ```sh
-   # derdieapp/  (exporter wrote build/export/nouns.db)
+   # derdieapp/  (exporter wrote exporter/build/export/nouns.db)
    mkdir -p app/src/main/assets
-   gzip -kc build/export/nouns.db > app/src/main/assets/nouns.db.gzip
+   gzip -kc exporter/build/export/nouns.db > app/src/main/assets/nouns.db.gzip
    ```
 
    The name must end `.gzip`, not `.gz`: AGP ≥ 9 silently inflates `.gz` assets at merge

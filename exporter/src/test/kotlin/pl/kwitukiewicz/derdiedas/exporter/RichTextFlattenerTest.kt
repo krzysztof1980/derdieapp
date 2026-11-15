@@ -166,6 +166,29 @@ class RichTextFlattenerTest {
         assertEquals("[kein Plural]: inniges Gefühl", flatten(text))
     }
 
+    // Final review round 1: a suffixless tag (`{{K|X}}word` renders parts only) leaves
+    // the `]` closing the template, and the punctuation opens the SIBLING — the
+    // separator-end rule above never sees it. The leading punctuation must stay (it IS
+    // the separator) but gains its space.
+    @Test
+    fun `suffixless context tag never glues to a punctuated sibling`() {
+        val text = RichText(
+            KTemplate(listOf(KTemplate.Part(RichText("Zoologie"), null)), null),
+            PlainText(":südamerikanischer Affe"),
+        )
+        assertEquals("[Zoologie]: südamerikanischer Affe", flatten(text))
+    }
+
+    @Test
+    fun `punctuation-only sibling chain after a suffixless tag keeps the space`() {
+        val text = RichText(
+            KTemplate(listOf(KTemplate.Part(RichText("regional"), null)), null),
+            PlainText(":"),
+            PlainText("Knüppel"),
+        )
+        assertEquals("[regional]: Knüppel", flatten(text))
+    }
+
     // Spec rule "links → their text": WikipediaLink behaves like InternalLink.
     @Test
     fun `wikipedia link renders its text falling back to the page title`() {

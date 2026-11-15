@@ -87,7 +87,8 @@ import pl.kwitukiewicz.derdiedas.core.washGenderKey
  * [Dispatchers.IO] the same way — never on the composition path. Homonym selection is
  * hoisted here (keyed on the query, so the choice survives rotation and a new query
  * restarts it) so the wash follows the segmented article row's choice, and the About
- * link sits under the answer. Person-name homonyms are never shown: the engine demotes
+ * entry rides the search row's overflow menu (Amendment #4). Person-name homonyms are
+ * never shown: the engine demotes
  * them to [LookupResult.footerNames], an internal lane the UI dropped on user decision
  * 2026-11-15.
  */
