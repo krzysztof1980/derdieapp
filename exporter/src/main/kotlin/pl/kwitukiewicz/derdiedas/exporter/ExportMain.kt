@@ -62,13 +62,10 @@ fun main(args: Array<String>) {
     var i = 0
     while (i < args.size) {
         when (val option = args[i]) {
-            "--out" -> { out = args[++i] }
-            "--dump" -> { dump = args[++i] }
-            "--es-user" -> { esUser = args[++i] }
-            else -> {
-                System.err.println("usage: ExportMain [--out <dir>] [--dump <name>] [--es-user <user:pass>]")
-                exitProcess(2)
-            }
+            "--out" -> { out = optionValue(args, ++i) }
+            "--dump" -> { dump = optionValue(args, ++i) }
+            "--es-user" -> { esUser = optionValue(args, ++i) }
+            else -> usage()
         }
         i++
     }
@@ -85,18 +82,30 @@ fun main(args: Array<String>) {
 
     val outDir = Path.of(out)
     val db = outDir.resolve("nouns.db")
-    writeDb(entries, forms, db, dump)
+    // Vectors BEFORE the db: a crashed rerun-to-success job may leave the next batch's
+    // fold_vectors.txt fresh but its nouns.db unpublished — never the reverse, where a
+    // published db would sit beside an absent or older stamp source.
     copyFoldVectorsBeside(db)
+    writeDb(entries, forms, db, dump)
 
     println("entries=${entries.size} forms=${forms.size} size=${Files.size(db) / 1024} KiB")
 }
 
 /** The app verifies its bundled vectors against the `fold_vectors_sha256` meta stamp. */
 private fun copyFoldVectorsBeside(db: Path) {
+    Files.createDirectories(db.parent) // runs before writeDb now, so the out dir may not exist yet
     val bytes = NounsSchema::class.java.classLoader
         .getResourceAsStream(NounsSchema.FOLD_VECTORS_RESOURCE)
         ?.readBytes()
         ?: error("missing classpath resource ${NounsSchema.FOLD_VECTORS_RESOURCE}")
     Files.write(db.resolveSibling(NounsSchema.FOLD_VECTORS_RESOURCE), bytes)
+}
+
+/** The value following an option; a dangling trailing option fails like an unknown one. */
+private fun optionValue(args: Array<String>, index: Int): String = args.getOrNull(index) ?: usage()
+
+private fun usage(): Nothing {
+    System.err.println("usage: ExportMain [--out <dir>] [--dump <name>] [--es-user <user:pass>]")
+    exitProcess(2)
 }
 

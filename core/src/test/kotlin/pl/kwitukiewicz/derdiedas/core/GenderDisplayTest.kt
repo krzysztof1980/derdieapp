@@ -31,6 +31,16 @@ class GenderDisplayTest {
     }
 
     @Test
+    fun `m-plural washes as masculine`() {
+        assertEquals(MASKULINUM, washGenderKey(listOf(M_PLURAL)))
+    }
+
+    @Test
+    fun `f-plural washes as feminine`() {
+        assertEquals(FEMININUM, washGenderKey(listOf(F_PLURAL)))
+    }
+
+    @Test
     fun `utrum stays utrum - the app maps it to neutral`() {
         assertEquals(UTRUM, washGenderKey(listOf(UTRUM)))
     }

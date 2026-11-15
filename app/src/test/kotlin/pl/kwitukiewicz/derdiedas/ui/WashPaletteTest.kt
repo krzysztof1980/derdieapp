@@ -13,7 +13,8 @@ import kotlin.math.min
 import kotlin.math.pow
 
 /**
- * Pins the wash palette: exact design hexes, WCAG AA (>= 4.5:1) for the text that
+ * Pins the wash palette: exact design hexes — full ARGB, so an accidental alpha change
+ * goes red — WCAG AA (>= 4.5:1) for the text that
  * sits on each wash in both schemes, and plural routing through core's washGenderKey.
  * Contrast is computed here from hex arithmetic only (no Compose rendering);
  * the sole Compose touch is reading WashPalette's Color back to an sRGB int.
@@ -23,22 +24,22 @@ class WashPaletteTest {
 
     @Test
     fun washHexesArePinned() {
-        assertEquals("EAF0FB", hex(WashPalette.wash(Gender.MASKULINUM, dark = false)))
-        assertEquals("FBECEA", hex(WashPalette.wash(Gender.FEMININUM, dark = false)))
-        assertEquals("E9F5EE", hex(WashPalette.wash(Gender.NEUTRUM, dark = false)))
-        assertEquals("F1F2F4", hex(WashPalette.wash(Gender.UTRUM, dark = false)))
-        assertEquals("17203A", hex(WashPalette.wash(Gender.MASKULINUM, dark = true)))
-        assertEquals("2B1512", hex(WashPalette.wash(Gender.FEMININUM, dark = true)))
-        assertEquals("10231A", hex(WashPalette.wash(Gender.NEUTRUM, dark = true)))
-        assertEquals("1B1C1F", hex(WashPalette.wash(Gender.UTRUM, dark = true)))
+        assertEquals("FFEAF0FB", argb(WashPalette.wash(Gender.MASKULINUM, dark = false)))
+        assertEquals("FFFBECEA", argb(WashPalette.wash(Gender.FEMININUM, dark = false)))
+        assertEquals("FFE9F5EE", argb(WashPalette.wash(Gender.NEUTRUM, dark = false)))
+        assertEquals("FFF1F2F4", argb(WashPalette.wash(Gender.UTRUM, dark = false)))
+        assertEquals("FF17203A", argb(WashPalette.wash(Gender.MASKULINUM, dark = true)))
+        assertEquals("FF2B1512", argb(WashPalette.wash(Gender.FEMININUM, dark = true)))
+        assertEquals("FF10231A", argb(WashPalette.wash(Gender.NEUTRUM, dark = true)))
+        assertEquals("FF1B1C1F", argb(WashPalette.wash(Gender.UTRUM, dark = true)))
     }
 
     @Test
     fun accentHexesArePinned() {
-        assertEquals("2F6BD8", hex(WashPalette.accent(Gender.MASKULINUM)))
-        assertEquals("D1493C", hex(WashPalette.accent(Gender.FEMININUM)))
-        assertEquals("2E8B57", hex(WashPalette.accent(Gender.NEUTRUM)))
-        assertEquals("919296", hex(WashPalette.accent(Gender.UTRUM)))
+        assertEquals("FF2F6BD8", argb(WashPalette.accent(Gender.MASKULINUM)))
+        assertEquals("FFD1493C", argb(WashPalette.accent(Gender.FEMININUM)))
+        assertEquals("FF2E8B57", argb(WashPalette.accent(Gender.NEUTRUM)))
+        assertEquals("FF919296", argb(WashPalette.accent(Gender.UTRUM)))
     }
 
     @Test
@@ -82,7 +83,10 @@ class WashPaletteTest {
 
     // --- WCAG 2.x relative-luminance/contrast from #RRGGBB hex, per the spec ---
 
-    /** sRGB hex (RRGGBB, opaque alpha dropped) of an opaque palette color. */
+    /** Full ARGB hex (AARRGGBB) — the pins prove the alpha channel too. */
+    private fun argb(color: Color): String = "%08X".format(color.toArgb())
+
+    /** sRGB hex (RRGGBB, opaque alpha dropped) — luminance input for the contrast test. */
     private fun hex(color: Color): String =
         "%06X".format(toRgb(color) and 0xFFFFFF)
 
