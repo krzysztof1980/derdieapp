@@ -49,11 +49,11 @@ jobs:
           clone_and_publish wiktionary-dump-browser dump-browser
           clone_and_publish wiktio-peggy-nary wiktio-peggy-nary
 
-      # The SDK is preinstalled on ubuntu-latest runners; this action is here to accept
-      # licenses deterministically so AGP may auto-download whatever platform/build-tools
-      # 35 piece is missing. local.properties is gitignored; AGP falls back to ANDROID_HOME.
-      - uses: android-actions/setup-android@v3
-
+      # No setup-android here: ubuntu-latest ships the Android SDK with licenses accepted
+      # (android-actions/setup-android@v3 itself fails on current images). If AGP ever
+      # needs a platform/build-tools piece the image lacks, its auto-download is licensed
+      # by the sdkmanager licenses dir already present; local.properties stays gitignored
+      # and AGP falls back to ANDROID_HOME.
       - name: Tests + debug assemble
         env:
           JAVA_HOME: ${{ env.JAVA_HOME_21_X64 }}
