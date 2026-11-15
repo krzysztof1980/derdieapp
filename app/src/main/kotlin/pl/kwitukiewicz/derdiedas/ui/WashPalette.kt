@@ -20,6 +20,17 @@ import pl.kwitukiewicz.derdiedas.core.washGenderKey
  */
 object WashPalette {
 
+    /**
+     * The app's single appearance decision (user decision 2026-11-15): the gender
+     * washes are the light pastel family in every system mode, so a phone in system
+     * dark mode shows exactly the pixels a phone in light mode shows. Nothing may
+     * read the system dark mode; DerdiedasTheme branches its Material 3 scheme on
+     * this same pin, so washes and chrome can never disagree. Flipping this to true
+     * (or, for a real two-appearance mode, making it system-dependent *here and only
+     * here*) is the one switch that moves the whole app to the dark family.
+     */
+    val appLooksDark = false
+
     // washes: light / dark
     private val DER_WASH_LIGHT = Color(0xFFEAF0FB)
     private val DER_WASH_DARK = Color(0xFF17203A)
@@ -50,6 +61,19 @@ object WashPalette {
     // text on wash: dark ink on light washes, near-white on dark washes
     private val ON_WASH_LIGHT = Color(0xFF1B1C1F)
     private val ON_WASH_DARK = Color(0xFFF1F2F4)
+
+    // query-field container: UI chrome, not gender-coded — deliberately outside the
+    // contrast-locked gender system. Pure opaque white: the filled field then reads
+    // as a raised box on every pastel wash it can sit on (>= 1.1:1 against all four,
+    // pinned by WashPaletteTest), while the wash still tints the screen around it.
+    private val FIELD_CONTAINER = Color(0xFFFFFFFF)
+
+    /**
+     * The filled query field's opaque container — UI chrome only, never a wash, and
+     * never gender-coded. Single value by construction: in the single-appearance app
+     * it only ever sits on the light pastel family.
+     */
+    fun fieldContainer(): Color = FIELD_CONTAINER
 
     fun wash(g: Gender, dark: Boolean): Color =
         when (washGenderKey(listOf(g))) {

@@ -33,6 +33,7 @@ import pl.kwitukiewicz.derdiedas.core.washGenderKey
 internal object UiTags {
     const val WASH = "wash"
     const val WASH_COLOR = "washColor"
+    const val QUERY_FIELD = "queryField" // chrome: the search box itself, not an answer node
     const val ARTICLE = "article"
     const val WORD = "word"
     const val PLURAL_LINE = "pluralLine"

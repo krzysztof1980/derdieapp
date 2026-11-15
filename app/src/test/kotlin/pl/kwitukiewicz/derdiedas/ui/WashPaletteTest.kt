@@ -52,6 +52,33 @@ class WashPaletteTest {
         assertEquals("FF87888D", argb(WashPalette.onWashMuted(dark = true)))
     }
 
+    @Test
+    fun fieldContainerHexIsPinned() {
+        assertEquals("FFFFFFFF", argb(WashPalette.fieldContainer()))
+    }
+
+    /**
+     * Field-container separability — UI chrome, outside the AA-locked gender system:
+     * it must read as a box against every wash it can sit on (>= 1.1:1, a luminance
+     * step of its own, no text claim). The single-appearance app renders only the
+     * light family, but the dark washes are kept for a possible two-appearance mode,
+     * so both sides are checked.
+     */
+    @Test
+    fun fieldContainerSeparatesFromEveryWash() {
+        val container = hex(WashPalette.fieldContainer())
+        val groups = listOf(Gender.MASKULINUM, Gender.FEMININUM, Gender.NEUTRUM, Gender.UTRUM)
+        for (dark in listOf(false, true)) {
+            for (g in groups) {
+                val ratio = contrast(container, hex(WashPalette.wash(g, dark)))
+                assertTrue(
+                    "fieldContainer on wash($g, dark=$dark) is ${"%.2f".format(ratio)} < 1.1",
+                    ratio >= 1.1,
+                )
+            }
+        }
+    }
+
     /**
      * The full matrix: every group's accent and the muted un-selected color over every
      * wash, both sides, each >= 4.5:1 — an unselected toggle segment or suggestion-row

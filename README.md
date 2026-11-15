@@ -106,7 +106,8 @@ needs eyes and a thumb:
 - `xyz` → no-result row quoting the typed text.
 - Landscape rotation keeps the query (and, after it settles, the same answer — the
   saveable round-trip is pinned by `SearchScreenRecreationTest`).
-- Dark mode: washes stay legible, text contrast comfortable.
+- System dark mode: app appearance stays identical (single-appearance design; the
+  `NightModeInvarianceTest` pins this).
 
 ## Troubleshooting
 

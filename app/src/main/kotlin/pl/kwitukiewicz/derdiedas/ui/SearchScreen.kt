@@ -3,7 +3,6 @@ package pl.kwitukiewicz.derdiedas.ui
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -71,7 +70,10 @@ fun SearchScreen(
     engineLoader: suspend () -> LookupEngine,
     metaProvider: suspend () -> Map<String, String> = { emptyMap() },
 ) {
-    val dark = isSystemInDarkTheme()
+    // Single-appearance app: the pin, never isSystemInDarkTheme() — the same decision
+    // DerdiedasTheme takes for the Material 3 scheme, so washes and chrome agree in
+    // every system mode.
+    val dark = WashPalette.appLooksDark
     var query by rememberSaveable { mutableStateOf("") }
     var result by remember { mutableStateOf<LookupResult?>(null) }
     // The query `result` was computed for — quoted by NoResult instead of the live field,
@@ -153,12 +155,22 @@ fun SearchScreen(
             TextField(
                 value = query,
                 onValueChange = { query = it },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag(UiTags.QUERY_FIELD),
                 placeholder = { Text(stringResource(R.string.query_hint)) },
                 singleLine = true,
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
+                    // Filled variant on the palette's chrome container: opaque white on
+                    // both states, so the field reads as a raised box on every pastel
+                    // wash. Placeholder/cursor/label inherit the pinned light scheme —
+                    // visible on the container in every system mode. Resting state is
+                    // container-only (no baseline); the focused indicator uses the
+                    // scheme's own ink.
+                    focusedContainerColor = WashPalette.fieldContainer(),
+                    unfocusedContainerColor = WashPalette.fieldContainer(),
+                    unfocusedIndicatorColor = Color.Transparent,
+                    focusedIndicatorColor = MaterialTheme.colorScheme.onSurface,
                 ),
             )
             when (answer) {
