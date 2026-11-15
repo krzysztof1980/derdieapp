@@ -2,6 +2,7 @@ package pl.kwitukiewicz.derdiedas
 
 import android.content.Context
 import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -34,6 +35,11 @@ class MainActivity : ComponentActivity() {
             statusBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
         )
+        // Single-appearance: the platform window default is a DayNight background, which
+        // in the phone's dark mode showed through the transparent bars as a dark gray
+        // strip above the (transparent, blank-state) wash. Pin the window's own canvas to
+        // white — the Compose scheme is always-light, so the window must be too.
+        window.setBackgroundDrawable(ColorDrawable(Color.WHITE))
         val appContext: Context = applicationContext
         setContent {
             DerdiedasTheme {
