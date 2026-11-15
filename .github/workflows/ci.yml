@@ -41,10 +41,18 @@ jobs:
       # default branches are public.
       - name: Stage wiktiopeggynary:1.0-SNAPSHOT into mavenLocal
         run: |
-          git clone --depth 1 https://github.com/krzysztof1980/wiktionary-dump-browser.git "$RUNNER_TEMP/dump-browser"
-          git clone --depth 1 https://github.com/krzysztof1980/wiktio-peggy-nary.git "$RUNNER_TEMP/wiktio-peggy-nary"
-          (cd "$RUNNER_TEMP/dump-browser" && chmod +x gradlew && JAVA_HOME=$JAVA_HOME_25_X64 ./gradlew --no-daemon -q publishToMavenLocal)
-          (cd "$RUNNER_TEMP/wiktio-peggy-nary" && chmod +x gradlew && JAVA_HOME=$JAVA_HOME_25_X64 ./gradlew --no-daemon -q publishToMavenLocal)
+          set -eo pipefail
+          clone_and_publish() { # $1 repo, $2 dir
+            git clone --depth 1 "https://github.com/krzysztof1980/$1.git" "$RUNNER_TEMP/$2"
+            (cd "$RUNNER_TEMP/$2" && chmod +x gradlew && JAVA_HOME="$JAVA_HOME_25_X64" ./gradlew --no-daemon publishToMavenLocal 2>&1 | tail -n 25)
+          }
+          if ! clone_and_publish wiktionary-dump-browser dump-browser; then
+            echo "::error::dump-browser staging failed (JH25=[${JAVA_HOME_25_X64:-UNSET}])"; exit 1
+          fi
+          if ! clone_and_publish wiktio-peggy-nary wiktio-peggy-nary; then
+            echo "::error::wiktio staging failed (JH25=[${JAVA_HOME_25_X64:-UNSET}])"; exit 1
+          fi
+          ls ~/.m2/repository/pl/kwitukiewicz/wiktiopeggynary/1.0-SNAPSHOT/ | head -3
 
       # The SDK is preinstalled on ubuntu-latest runners; this action is here to accept
       # licenses deterministically so AGP may auto-download whatever platform/build-tools
