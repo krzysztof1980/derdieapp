@@ -12,19 +12,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Temurin 21 runs the Gradle daemon — the wrapper 9.7.1 runs fine on 21; the
-      # org.gradle.java.home pinned in gradle.properties is an absolute-path workaround
-      # for the original author's machine (JDK 25 host, KGP parser crash), does not exist
-      # on the runner, and is explicitly overridden in the build step. JDK 25 is installed
-      # alongside because :exporter declares jvmToolchain(25): it reads Java 25 class files
-      # from the published wiktio jar. setup-java makes the first entry JAVA_HOME, and
-      # Gradle's toolchain auto-detection finds the second.
+      # Temurin 21 runs the Gradle daemon (wrapper 9.7.1 runs fine on 21). JDK 17 is
+      # installed alongside because :core and :app declare jvmToolchain(17); Gradle
+      # auto-detects it. Nothing here needs JDK 25 — :exporter (the only JDK 25 module)
+      # is deliberately not built, see the note on the build step.
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: |
             21
-            25
+            17
           cache: gradle
 
       # The SDK is preinstalled on ubuntu-latest runners; this action is here to accept
@@ -33,11 +30,11 @@ jobs:
       - uses: android-actions/setup-android@v3
 
       - name: Tests + debug assemble
-        # Known prerequisite (open): :exporter:test resolves wiktiopeggynary:1.0-SNAPSHOT
-        # from mavenLocal. Until that jar is staged on the runner or published to a
-        # fetchable repository (companion repo is private), this step fails at dependency
-        # resolution for :exporter — the :core/:app tasks are unaffected. See README "CI".
-        run: >-
-          ./gradlew
-          -Dorg.gradle.java.home="$JAVA_HOME"
-          :core:test :exporter:test :app:testDebugUnitTest :app:assembleDebug
+        # :exporter:test is deliberately absent: it resolves
+        # wiktiopeggynary:1.0-SNAPSHOT from mavenLocal, which lives only in the private
+        # companion repo. Including it would not merely red the exporter job — without
+        # --continue, Gradle aborts the whole run as soon as that dependency resolution
+        # fails, so :core/:app results would never be produced either. Re-add
+        # :exporter:test here once the snapshot is staged on the runner or published to a
+        # fetchable repository (README "CI" tracks this TODO).
+        run: ./gradlew :core:test :app:testDebugUnitTest :app:assembleDebug

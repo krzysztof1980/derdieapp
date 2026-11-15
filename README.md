@@ -19,14 +19,15 @@ single androidx-injected dynamic-receiver permission.
 
 ## Building
 
-Prerequisites: JDK 17 on the machine (the Gradle daemon runs on it), Android SDK 35.
-`local.properties` must point `sdk.dir` at a local SDK (gitignored).
+Prerequisites: any JDK 17–25, Android SDK 35, and `local.properties` pointing `sdk.dir`
+at that SDK (gitignored). Point `JAVA_HOME` at your JDK first — this machine has no java
+on `PATH`, and Gradle needs a JVM just to start:
 
-`gradle.properties` pins `org.gradle.java.home` to an absolute JDK 17 path: the Kotlin
-plugin's version parser chokes on JDK 25, so the original author's machine pins its own
-daemon JVM. If the path doesn't exist on your box, do **not** delete the pin — override
-it per invocation: `./gradlew -Dorg.gradle.java.home=$JAVA_HOME <task>` (CI does exactly
-that with the runner's JDK 21).
+```sh
+export JAVA_HOME=/path/to/your/jdk-21    # pick yours; CI runs Temurin 21
+```
+
+Everything below then runs as written from this repo's root:
 
 ```sh
 ./gradlew :core:test :exporter:test :app:testDebugUnitTest   # all tests
@@ -34,34 +35,49 @@ that with the runner's JDK 21).
 ./gradlew :app:assembleRelease                               # R8-minified, unsigned
 ```
 
+`gradle.properties` carries no `org.gradle.java.home`: an absolute JDK path is
+machine-specific and must not be tracked, and none is needed — the build runs on daemons
+from 17 to 25 (both ends verified). If something on your box insists on pinning anyway,
+see Troubleshooting.
+
 ### Getting the dictionary asset
 
 The ~93 MiB database is never committed (`.gitignore` keeps `app/src/main/assets/nouns.db*`
 out); a build without it throws an `AssetNotFoundException` naming `nouns.db.gzip` on
-first launch.
+first launch. Steps name their repo; all relative paths are from that repo's root.
 
-1. In the companion parser repo (`wiktio-peggy-nary`): parse the dump into the local
-   Elasticsearch 8.15 index — `./gradlew runParserParallel -PdumpFile=<pages-articles.xml>` —
-   then `./gradlew publishToMavenLocal`. `:exporter` consumes the published
-   `wiktiopeggynary:wiktiopeggynary:1.0-SNAPSHOT` model jar from mavenLocal, and needs a
-   JDK 25 toolchain to read its class files.
-2. From this repo's root, run the exporter against that index:
+1. Parser repo (`../wiktio-peggy-nary`) — parse the dump into the local Elasticsearch
+   8.15 index, then publish the model jar:
 
    ```sh
-   ./gradlew :exporter:run --args="--out <dir> --dump <index-name> --es-user elastic:<pass>"
+   # wiktio-peggy-nary/
+   ./gradlew runParserParallel -PdumpFile=/path/to/pages-articles.xml
+   ./gradlew publishToMavenLocal
    ```
-3. The exporter writes a plain `nouns.db` plus a copy of `fold_vectors.txt` beside it.
-   **Only the database is an app asset**, gzipped under this exact name:
+
+   `:exporter` consumes the published `wiktiopeggynary:wiktiopeggynary:1.0-SNAPSHOT` jar
+   from mavenLocal and declares a JDK 25 toolchain to read its class files.
+2. This repo's root — export the index into a plain database under a pinned dir:
 
    ```sh
-   gzip -kc nouns.db > ../derdieapp/app/src/main/assets/nouns.db.gzip
+   # derdieapp/
+   ./gradlew :exporter:run --args="--out build/export --dump <index-name> --es-user elastic:<pass>"
+   ```
+
+3. Still `derdieapp/` root — gzip the one file that is an app asset:
+
+   ```sh
+   # derdieapp/  (exporter wrote build/export/nouns.db)
+   mkdir -p app/src/main/assets
+   gzip -kc build/export/nouns.db > app/src/main/assets/nouns.db.gzip
    ```
 
    The name must end `.gzip`, not `.gz`: AGP ≥ 9 silently inflates `.gz` assets at merge
-   time, which would hand the app a plain file named `nouns.db`. The fold vectors need no
-   copying step at all — they ship as a `:core` jar resource (`fold_vectors.txt`) and the
-   exporter stamps their hash into the DB so any drift between the two shipped copies
-   fails loudly at first launch of a debug build.
+   time, which would hand the app a plain file named `nouns.db`. The exporter also writes
+   `fold_vectors.txt` beside the database; it needs no copying step — the app's vectors
+   ship as the `:core` jar resource they were hashed from at export time, and the DB
+   carries that hash so any drift between the two shipped copies fails loudly at first
+   launch of a debug build.
 
 ### Launcher icon
 
@@ -72,22 +88,33 @@ pre-Play TODO.
 
 ## Manual smoke checklist (device)
 
-Run `:app:assembleDebug`, install, and verify — the automated subset runs in CI, this
-list covers what needs eyes and a thumb:
+Install the debug APK and verify — the automated subset runs in CI, this list covers what
+needs eyes and a thumb:
 
 - Airplane mode: everything works (no network calls exist to fail).
 - `booten` → plural note (`das Booten`, plural `—`).
-- `Mueller` → folded match on *die Müller* (surname/word lane per the rules).
+- `Mueller` → folded match on *die Müller*: the `Mueller`/`Müller` → `mueller` key
+  convergence is pinned by `FoldTest`; the device step exercises the lane rules on top.
 - `zeit` → answer with the surname footer lane.
 - `eltern` → *die Elten*, die + note.
 - `virus` → both genders accepted (`das/der`), **no** gender toggle anywhere on screen.
 - `xyz` → no-result row quoting the typed text.
-- Landscape rotation keeps the query (and, after it settles, the same answer).
+- Landscape rotation keeps the query (and, after it settles, the same answer — the
+  saveable round-trip is pinned by `SearchScreenRecreationTest`).
 - Dark mode: washes stay legible, text contrast comfortable.
 
-## Screenshots
+## Troubleshooting
 
-TODO — Play Store screenshots (light + dark, 1080×1920 and 1920×1080) before release.
+- **Kotlin plugin ≤ 2.0.x crashes on a JDK 25 daemon** (its version parser chokes on
+  strings like `25.0.4.1`). This repo's Kotlin (2.4.21 via the catalog) does not crash,
+  so prefer just running on JDK 17–21. If you are pinned to an old plugin, add
+  `org.gradle.java.home=/path/to/jdk-17` to `~/.gradle/gradle.properties` — host-level on
+  purpose, so no repo tracks a machine path; CI needs no pin at all because setup-java
+  pins JDK 21. Careful: the Gradle user home outranks every project's
+  `org.gradle.java.home`, so a host-wide JDK 17 also re-jails sibling builds that need a
+  newer daemon (the parser repo needs ≥ 25 — verified to break under a host pin).
+- **`:exporter` dependency `wiktiopeggynary:1.0-SNAPSHOT` not found** — run
+  `./gradlew publishToMavenLocal` in the parser repo first.
 
 ## Privacy
 
@@ -101,6 +128,10 @@ German word data comes from the [German Wiktionary](https://de.wiktionary.org), 
 the CC BY-SA 4.0 and GFDL licenses; the in-app About dialog names the dump version. Entries
 are parsed and exported by `wiktiopeggynary`.
 
+## Screenshots
+
+TODO — Play Store screenshots (light + dark, 1080×1920 and 1920×1080) before release.
+
 ## Before Play (open items)
 
 - [ ] Choose and apply an open-source license (repo currently has none).
@@ -113,9 +144,10 @@ are parsed and exported by `wiktiopeggynary`.
 
 ## CI
 
-`.github/workflows/ci.yml` runs `:core:test :exporter:test :app:testDebugUnitTest
-:app:assembleDebug` on a Temurin 21 runner (the Gradle wrapper 9.7.1 runs fine on 21; the
-local JDK-17 daemon pin is a machine-specific workaround and is overridden in the
-workflow). Caveat: `:exporter:test` needs the `wiktiopeggynary:1.0-SNAPSHOT` jar from
-mavenLocal — CI only goes green once that snapshot is published somewhere the workflow can
-fetch (or the exporter job pre-stages it); see the comment in the workflow.
+`.github/workflows/ci.yml` runs `:core:test :app:testDebugUnitTest :app:assembleDebug` on
+Temurin 21 (Gradle wrapper 9.7.1 runs fine on 21; JDK 17 is installed alongside for the
+`jvmToolchain(17)` modules). `:exporter:test` is deliberately absent: it resolves the
+private `wiktiopeggynary:1.0-SNAPSHOT` from mavenLocal, and one resolution failure without
+`--continue` aborts the entire run, so including it would take `:core`/`:app` results
+down with it. **TODO:** re-add `:exporter:test` once that snapshot is staged on the
+runner or published to a fetchable repository.

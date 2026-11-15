@@ -40,19 +40,20 @@ android {
 }
 
 // ManifestContractTest pins the shipped offline contract against the exact merged manifest
-// that goes into each variant's APK: hand AGP's merged-manifest artifact to the test JVM as
-// a system property and order the unit-test task after its production, so the test always
-// (re)merges instead of depending on whoever ran assemble* last.
+// that goes into each variant's APK. AGP's merged-manifest artifact reaches the test JVM
+// through a jvmArgumentProvider, so (a) the manifest BYTES are a declared task input — a
+// manifest-only edit can never ride along on an UP-TO-DATE test run — and (b) the provider
+// hands the test the artifact path as a system property, ordered via dependsOn so the test
+// never reads a stale file from an older build.
 androidComponents {
     onVariants(selector().all()) { variant ->
         val mergedManifest = variant.artifacts.get(com.android.build.api.artifact.SingleArtifact.MERGED_MANIFEST)
         val unitTestTask = "test${variant.name.replaceFirstChar(Char::uppercase)}UnitTest"
         tasks.withType<org.gradle.api.tasks.testing.Test>().matching { it.name == unitTestTask }.configureEach {
             dependsOn(mergedManifest)
-            // Resolved in doFirst: the artifact path is only final once the merge task ran.
-            doFirst {
-                systemProperty("derdieapp.merged.manifest", mergedManifest.get().asFile.absolutePath)
-            }
+            val contractInputs = objects.newInstance(ManifestContractInputs::class.java)
+            contractInputs.mergedManifest.set(mergedManifest)
+            jvmArgumentProviders.add(contractInputs)
         }
     }
 }
@@ -87,4 +88,19 @@ dependencies {
     androidTestImplementation(libs.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.test.junit)
     debugImplementation(libs.compose.ui.test.manifest)
+}
+
+/**
+ * The merged manifest as a genuine up-to-date input of the unit-test task: the @InputFile
+ * on the provider property makes Gradle hash the manifest bytes (edits re-run the contract
+ * test), while [asArguments] delivers the artifact path to the test JVM.
+ */
+abstract class ManifestContractInputs @javax.inject.Inject constructor() : org.gradle.process.CommandLineArgumentProvider {
+
+    @get:org.gradle.api.tasks.InputFile
+    @get:org.gradle.api.tasks.PathSensitive(org.gradle.api.tasks.PathSensitivity.NONE)
+    abstract val mergedManifest: org.gradle.api.file.RegularFileProperty
+
+    override fun asArguments(): List<String> =
+        listOf("-Dderdieapp.merged.manifest=${mergedManifest.get().asFile.absolutePath}")
 }
