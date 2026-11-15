@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -46,9 +47,17 @@ import pl.kwitukiewicz.derdiedas.core.washGenderKey
  * generation in a version counter; when the lookup finally returns from
  * [Dispatchers.Default], only the newest generation may publish — stale answers are
  * dropped instead of flashing. Results are applied back on the main thread.
+ *
+ * [metaProvider] supplies the exporter's meta stamps for the attribution dialog, read on
+ * [Dispatchers.IO] the same way — never on the composition path. Homonym selection is
+ * hoisted here (keyed on the answer object) so the wash follows the segmented article
+ * row's choice, and the person-name lane plus the About link sit under the answer.
  */
 @Composable
-fun SearchScreen(engineLoader: suspend () -> LookupEngine) {
+fun SearchScreen(
+    engineLoader: suspend () -> LookupEngine,
+    metaProvider: suspend () -> Map<String, String> = { emptyMap() },
+) {
     val dark = isSystemInDarkTheme()
     var query by rememberSaveable { mutableStateOf("") }
     var result by remember { mutableStateOf<LookupResult?>(null) }
@@ -56,6 +65,10 @@ fun SearchScreen(engineLoader: suspend () -> LookupEngine) {
 
     val engine by produceState<LookupEngine?>(initialValue = null) {
         value = withContext(Dispatchers.IO) { engineLoader() }
+    }
+
+    val meta by produceState(initialValue = emptyMap(), metaProvider) {
+        value = withContext(Dispatchers.IO) { metaProvider() }
     }
 
     LaunchedEffect(query, engine) {
@@ -108,7 +121,10 @@ fun SearchScreen(engineLoader: suspend () -> LookupEngine) {
                 is Suggestions -> SuggestionRows(answer.entries) { query = it }
                 NoResult -> NoResultLine(query)
             }
-            result?.footerNames?.let { names -> SurnameFooters(names) }
+            result?.footerNames
+                ?.takeIf { it.isNotEmpty() } // no lane at all without demoted person names
+                ?.let { names -> SurnameFooter(names) }
+            AboutLink(meta = meta, modifier = Modifier.padding(start = 12.dp))
             visibleWash?.let {
                 // Zero-size but in the semantics tree: tests assert the active wash color
                 // as its hex instead of screenshotting pixels.

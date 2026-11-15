@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -22,15 +21,14 @@ import androidx.compose.ui.unit.sp
 import pl.kwitukiewicz.derdiedas.R
 import pl.kwitukiewicz.derdiedas.core.Candidate
 import pl.kwitukiewicz.derdiedas.core.Entry
-import pl.kwitukiewicz.derdiedas.core.Homonyms
 import pl.kwitukiewicz.derdiedas.core.articlesText
 import pl.kwitukiewicz.derdiedas.core.isPluralOnly
 import pl.kwitukiewicz.derdiedas.core.washGenderKey
 
 /**
  * The semantics-tag vocabulary pinned by the plan: Tasks 7-8 tests match nodes by these
- * exact values, so renaming one is a contract change. `about` belongs to Task 8's state
- * and has no rendering site yet; the constant keeps the vocabulary in one place.
+ * exact values, so renaming one is a contract change. `toggle`, `surnameFooter`/
+ * `surnameEntry` and `about`/`aboutBody` render from the Task 8 subviews.
  */
 internal object UiTags {
     const val WASH = "wash"
@@ -45,7 +43,9 @@ internal object UiTags {
     const val NO_RESULT = "noResult"
     const val TOGGLE = "toggle"
     const val SURNAME_FOOTER = "surnameFooter"
+    const val SURNAME_ENTRY = "surnameEntry"
     const val ABOUT = "about"
+    const val ABOUT_BODY = "aboutBody"
 }
 
 /** `#AARRGGBB` uppercase of [color]; what the hidden [UiTags.WASH_COLOR] node exposes. */
@@ -134,34 +134,6 @@ fun CandidateDetails(candidate: Candidate, dark: Boolean, modifier: Modifier = M
     }
 }
 
-/**
- * Several entries share the typed form: [selectedIndex]'s candidate renders in full and
- * the [UiTags.TOGGLE] button cycles to the next one. Selection is screen state passed in,
- * so the wash can follow whichever candidate is shown.
- */
-@Composable
-fun HomonymDetails(
-    homonyms: Homonyms,
-    selectedIndex: Int,
-    dark: Boolean,
-    modifier: Modifier = Modifier,
-    onSelect: (Int) -> Unit,
-) {
-    val candidates = homonyms.candidates
-    val next = candidates[(selectedIndex + 1) % candidates.size]
-    Column(modifier) {
-        CandidateDetails(candidates[selectedIndex], dark)
-        TextButton(
-            onClick = { onSelect((selectedIndex + 1) % candidates.size) },
-            modifier = Modifier
-                .testTag(UiTags.TOGGLE)
-                .padding(start = 12.dp),
-        ) {
-            Text(stringResource(R.string.homonym_toggle, articlesText(next.entry.genders), next.entry.lemma))
-        }
-    }
-}
-
 /** Prefix completions, one row per distinct lemma; a tap replaces the query with that exact lemma. */
 @Composable
 fun SuggestionRows(
@@ -204,18 +176,4 @@ fun NoResultLine(query: String, modifier: Modifier = Modifier) {
             .padding(24.dp),
         style = MaterialTheme.typography.bodyLarge,
     )
-}
-
-/** Person-name homonyms the engine demoted from the answer to a footnote. */
-@Composable
-fun SurnameFooters(names: List<Entry>, modifier: Modifier = Modifier) {
-    Column(modifier.padding(horizontal = 24.dp, vertical = 16.dp)) {
-        names.forEach { entry ->
-            Text(
-                text = stringResource(R.string.surname_footer, entry.lemma),
-                modifier = Modifier.testTag(UiTags.SURNAME_FOOTER),
-                style = MaterialTheme.typography.bodySmall,
-            )
-        }
-    }
 }

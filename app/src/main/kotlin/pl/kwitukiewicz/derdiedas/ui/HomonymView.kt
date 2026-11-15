@@ -1,0 +1,54 @@
+package pl.kwitukiewicz.derdiedas.ui
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import pl.kwitukiewicz.derdiedas.core.Homonyms
+import pl.kwitukiewicz.derdiedas.core.articlesText
+import pl.kwitukiewicz.derdiedas.core.washGenderKey
+
+/**
+ * Several entries share the typed form: [selectedIndex]'s candidate renders in full above a
+ * segmented article row — one [UiTags.TOGGLE] segment per candidate, in page order — and a
+ * segment tap reports that candidate's index through [onSelect]. Selection is screen state
+ * passed in, so the wash can follow the candidate on screen; the detail (meaning, notes)
+ * is [selectedIndex]'s by construction.
+ */
+@Composable
+fun HomonymDetails(
+    homonyms: Homonyms,
+    selectedIndex: Int,
+    dark: Boolean,
+    modifier: Modifier = Modifier,
+    onSelect: (Int) -> Unit,
+) {
+    val candidates = homonyms.candidates
+    Column(modifier) {
+        CandidateDetails(candidates[selectedIndex], dark)
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            candidates.forEachIndexed { index, candidate ->
+                val accent = WashPalette.accent(washGenderKey(candidate.entry.genders))
+                val selected = index == selectedIndex
+                Text(
+                    text = articlesText(candidate.entry.genders),
+                    modifier = Modifier
+                        .testTag(UiTags.TOGGLE)
+                        .clickable { onSelect(index) }
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                    color = if (selected) accent else accent.copy(alpha = 0.45f),
+                )
+            }
+        }
+    }
+}

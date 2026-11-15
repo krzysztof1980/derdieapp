@@ -6,6 +6,11 @@
     <string name="plural_forms">Plural: %1$s</string>
     <string name="plural_only">Plural only</string>
     <string name="no_result">No entry for \"%1$s\"</string>
-    <string name="surname_footer">Also a person name: %1$s</string>
-    <string name="homonym_toggle">Show %1$s %2$s instead</string>
+    <string name="surname_lane">Person names:</string>
+    <string name="about_link">About</string>
+    <string name="about_title">About derdieapp</string>
+    <string name="about_attribution">German word data comes from the German Wiktionary, used under the CC BY-SA 4.0 and GFDL licenses.</string>
+    <string name="about_source">de.wiktionary.org, dump %1$s</string>
+    <string name="about_parser">Entries parsed and exported by wiktiopeggynary.</string>
+    <string name="about_close">Close</string>
 </resources>
