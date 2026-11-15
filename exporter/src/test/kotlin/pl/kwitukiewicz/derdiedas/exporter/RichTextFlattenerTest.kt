@@ -108,6 +108,64 @@ class RichTextFlattenerTest {
         assertEquals("[Biologie], Medizin: kleinster Krankheitserreger", flatten(text))
     }
 
+    // Same defect at the OTHER boundary: Wiktionary often writes {{K|Zoologie}}:süd… —
+    // the suffix colon closes the template and the glued text is a sibling component,
+    // so renderKTemplate's own normalization can never reach it. The junction between a
+    // context tag and the sibling right after it gets the same treatment: a redundant
+    // separator run at the sibling's start collapses into the template's own separator,
+    // and one space always follows it.
+    @Test
+    fun `context suffix never glues to the following sibling`() {
+        val text = RichText(
+            KTemplate(listOf(KTemplate.Part(RichText("Zoologie"), null)), RichText(":")),
+            PlainText("südamerikanischer Affe"),
+        )
+        assertEquals("[Zoologie]: südamerikanischer Affe", flatten(text))
+    }
+
+    @Test
+    fun `repeated separator at the context boundary collapses to one`() {
+        val text = RichText(
+            KTemplate(listOf(KTemplate.Part(RichText("umgangssprachlich"), null)), RichText(":")),
+            PlainText(": Führungsperson"),
+        )
+        assertEquals("[umgangssprachlich]: Führungsperson", flatten(text))
+    }
+
+    @Test
+    fun `separator remnant after the context suffix is dropped`() {
+        val text = RichText(
+            KTemplate(listOf(KTemplate.Part(RichText("Sport"), null)), RichText(":")),
+            PlainText(", nur Plural: Sportgerät"),
+        )
+        assertEquals("[Sport]: nur Plural: Sportgerät", flatten(text))
+    }
+
+    // The separator-only sibling (": " between the template and the gloss) is the most
+    // common real composition (Vorstand in the live index): collapsing it must still leave
+    // the one space — collapsing it to nothing glued the gloss ("[x]:Führungsperson").
+    @Test
+    fun `separator-only sibling after the context tag still leaves one space`() {
+        val text = RichText(
+            KTemplate(listOf(KTemplate.Part(RichText("ugs."), null)), RichText(":")),
+            PlainText(": "),
+            PlainText("Führungsperson"),
+            PlainText(" in einem "),
+            PlainText("Verein"),
+        )
+        assertEquals("[umgangssprachlich]: Führungsperson in einem Verein", flatten(text))
+    }
+
+    @Test
+    fun `whitespace-only sibling after the context tag still leaves one space`() {
+        val text = RichText(
+            KTemplate(listOf(KTemplate.Part(RichText("kein Plural"), null)), RichText(":")),
+            PlainText(" "),
+            PlainText("inniges Gefühl"),
+        )
+        assertEquals("[kein Plural]: inniges Gefühl", flatten(text))
+    }
+
     // Spec rule "links → their text": WikipediaLink behaves like InternalLink.
     @Test
     fun `wikipedia link renders its text falling back to the page title`() {

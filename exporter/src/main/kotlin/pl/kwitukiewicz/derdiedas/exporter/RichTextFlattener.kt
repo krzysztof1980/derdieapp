@@ -17,8 +17,30 @@ import wiktiopeggynary.model.meaning.KontextShortcutMapper
 fun flatten(text: RichText?): String =
     text?.let { renderComponents(it.components) }?.let(::normalizeSpaces) ?: ""
 
-private fun renderComponents(components: List<RichTextComponent>): String =
-    components.joinToString("") { render(it) }
+private const val SEPARATOR_CHARS = ",;:"
+
+/**
+ * Junction after a context tag (device finding 2026-11-15): Wiktionary writes
+ * `{{K|Zoologie}}:süd…` — the suffix colon closes the template and the glued text is a
+ * sibling component, so [renderKTemplate]'s own normalization can never reach it. When
+ * the previous component was a KTemplate and its rendering ends on a separator, the
+ * sibling's leading separator run (redundant leftovers like `:`/`,` from the wikitext)
+ * collapses into that separator and exactly one space follows.
+ */
+private fun renderComponents(components: List<RichTextComponent>): String = buildString {
+    var previousWasContextTag = false
+    for (component in components) {
+        var rendered = render(component)
+        if (previousWasContextTag && length > 0 && this[length - 1] in SEPARATOR_CHARS) {
+            // The space is unconditional: separator-only siblings (": ", " ") collapse
+            // but the context tag still keeps its one space before the following text —
+            // dropping them to "" glued 8387 exported meanings (caught by re-export scan).
+            rendered = " " + rendered.dropWhile { it == ' ' || it in SEPARATOR_CHARS }
+        }
+        append(rendered)
+        previousWasContextTag = component is KTemplate
+    }
+}
 
 private fun render(component: RichTextComponent): String = when (component) {
     is PlainText -> component.text
