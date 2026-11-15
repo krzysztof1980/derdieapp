@@ -18,7 +18,11 @@ class LookupEngine(private val repo: WordRepository) {
         if (hits.isNotEmpty()) return answeredFrom(hits)
 
         val suggestions = repo.prefixForms(folded, PREFIX_FORM_LIMIT)
-            .distinctBy { it.entry.lemma } // repo order: first hit of a lemma is its lowest page_order one
+            .distinctBy { it.entry.lemma }
+            // Repo order makes a lemma's first hit its lowest-page_order entry: within each
+            // form group hits ascend by page_order, and every entry carries its own lemma
+            // row, so the first (lexicographically smallest) form group of a lemma already
+            // contains all of that lemma's entries in page order.
             .map { it.entry }
         return if (suggestions.isEmpty()) LookupResult(NoResult)
         else LookupResult(Suggestions(suggestions.take(MAX_SUGGESTIONS)))

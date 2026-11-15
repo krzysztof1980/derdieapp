@@ -110,12 +110,15 @@ class FakeWordRepository(
             Row("müller", 7, "Singular", "Nominativ", isLemma = true),
             Row("mueller", 7, "Singular", "Nominativ", isLemma = false),
             Row("kevin", 8, "Singular", "Nominativ", isLemma = true),
+            // Escape-discriminator (Task 5 review round 1): a real form containing the
+            // ESCAPE character, so a backslash prefix has a positive match to find.
+            Row("ke\\vin", 8, null, null, isLemma = false),
         )
 
         val META: Map<String, String> = mapOf(
             NounsSchema.META_SCHEMA_VERSION to NounsSchema.VERSION,
             NounsSchema.META_BUILT_AT to "t1",
-            NounsSchema.META_BUILT_FROM to "test-fixture",
+            NounsSchema.META_BUILT_FROM to "test",
         )
     }
 }

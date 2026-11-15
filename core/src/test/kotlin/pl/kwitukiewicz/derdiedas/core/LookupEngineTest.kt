@@ -22,12 +22,14 @@ class LookupEngineTest {
 
     @Test
     fun `two genders of one spelling surface as homonyms in page order`() {
-        val answer = engine.lookup("Boote")!!.answer as Homonyms
+        val result = engine.lookup("Boote")!!
+        val answer = result.answer as Homonyms
 
         assertEquals(listOf(1L, 2L), answer.candidates.map { it.entry.entryId })
         assertEquals(listOf("das", "der"),
             answer.candidates.map { articlesText(it.entry.genders) })
         assertEquals(0, answer.selectedIndex)
+        assertTrue(result.footerNames.isEmpty())
     }
 
     @Test
