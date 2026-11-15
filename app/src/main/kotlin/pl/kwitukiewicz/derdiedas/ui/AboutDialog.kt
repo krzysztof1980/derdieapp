@@ -16,50 +16,38 @@ import pl.kwitukiewicz.derdiedas.R
 import pl.kwitukiewicz.derdiedas.core.NounsSchema
 
 /**
- * Attribution entry point: a muted [UiTags.ABOUT] link opening a dialog that credits the
- * German Wiktionary under CC BY-SA 4.0 + GFDL, names the exact dump via the repository's
- * `built_from` meta stamp, and credits the wiktiopeggynary parser that produced the data.
- * [meta] arrives from the screen's off-main provider, so composing this stays a pure read.
+ * Attribution dialog (opened from the search row's overflow menu since Amendment #4):
+ * credits the German Wiktionary under CC BY-SA 4.0 + GFDL, names the exact dump via the
+ * repository's `built_from` meta stamp, and credits the wiktiopeggynary parser that
+ * produced the data. [meta] arrives from the screen's off-main provider, so composing
+ * this stays a pure read.
  */
 @Composable
-fun AboutLink(meta: Map<String, String>, modifier: Modifier = Modifier) {
-    var open by remember { mutableStateOf(false) }
-    TextButton(
-        onClick = { open = true },
-        modifier = modifier.testTag(UiTags.ABOUT),
-    ) {
-        Text(
-            text = stringResource(R.string.about_link),
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+fun AboutDialog(meta: Map<String, String>, onDismiss: () -> Unit) {
+    val body = buildString {
+        appendLine(stringResource(R.string.about_attribution))
+        appendLine(
+            stringResource(
+                R.string.about_source,
+                meta[NounsSchema.META_BUILT_FROM] ?: "unknown",
+            ),
         )
+        append(stringResource(R.string.about_parser))
     }
-    if (open) {
-        val body = buildString {
-            appendLine(stringResource(R.string.about_attribution))
-            appendLine(
-                stringResource(
-                    R.string.about_source,
-                    meta[NounsSchema.META_BUILT_FROM] ?: "unknown",
-                ),
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.about_title)) },
+        text = {
+            Text(
+                text = body,
+                modifier = Modifier.testTag(UiTags.ABOUT_BODY),
+                style = MaterialTheme.typography.bodyMedium,
             )
-            append(stringResource(R.string.about_parser))
-        }
-        AlertDialog(
-            onDismissRequest = { open = false },
-            title = { Text(stringResource(R.string.about_title)) },
-            text = {
-                Text(
-                    text = body,
-                    modifier = Modifier.testTag(UiTags.ABOUT_BODY),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = { open = false }) {
-                    Text(stringResource(R.string.about_close))
-                }
-            },
-        )
-    }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.about_close))
+            }
+        },
+    )
 }

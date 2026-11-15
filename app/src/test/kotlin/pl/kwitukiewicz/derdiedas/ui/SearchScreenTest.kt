@@ -10,6 +10,7 @@ import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.waitUntilExactlyOneExists
@@ -210,6 +211,17 @@ class SearchScreenTest {
         compose.onNodeWithTag(UiTags.TOGGLE).assertDoesNotExist() // guard dropped it
         compose.onNodeWithText("Boot").assertDoesNotExist()
         compose.onNodeWithTag(UiTags.WORD).assertTextEquals("Virus")
+    }
+
+    @Test
+    fun aboutLivesInTheOverflowMenuNotOnTheBaseScreen() {
+        showSearch()
+        // Amendment #4: the footer link is gone — nothing labeled "About" until the
+        // overflow opens, and the menu's single entry carries the exact label.
+        compose.onNodeWithText("About").assertDoesNotExist()
+        compose.onNodeWithTag(UiTags.MENU).performClick()
+        compose.awaitTag(UiTags.MENU_ITEM)
+        compose.onNodeWithTag(UiTags.MENU_ITEM).assertTextEquals("About")
     }
 
     private companion object {

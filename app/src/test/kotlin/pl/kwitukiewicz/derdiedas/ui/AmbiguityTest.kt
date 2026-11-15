@@ -65,7 +65,10 @@ class AmbiguityTest {
     @Test
     fun aboutDialogAttributesWiktionaryAndTheParser() {
         showSearch()
-        compose.onNodeWithTag(UiTags.ABOUT).performClick()
+        // 2026-11-15: About lives in the overflow menu now (Amendment #4), not a footer link.
+        compose.onNodeWithTag(UiTags.MENU).performClick()
+        compose.waitUntilExactlyOneExists(hasTestTag(UiTags.MENU_ITEM), SETTLE_TIMEOUT_MS)
+        compose.onNodeWithTag(UiTags.MENU_ITEM).performClick()
         compose.waitUntilExactlyOneExists(hasTestTag(UiTags.ABOUT_BODY), SETTLE_TIMEOUT_MS)
         compose.assertTextContainsViaSemantics(UiTags.ABOUT_BODY, "CC BY-SA 4.0")
         compose.assertTextContainsViaSemantics(UiTags.ABOUT_BODY, "GFDL")

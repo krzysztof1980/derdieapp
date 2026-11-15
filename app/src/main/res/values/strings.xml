@@ -5,11 +5,12 @@
     <string name="app_name">DerDieDas</string>
     <string name="query_hint">German noun or form</string>
     <string name="clear_query">Clear search</string>
+    <string name="menu_desc">More options</string>
+    <string name="menu_about">About</string>
     <string name="plural_forms">Plural: %1$s</string>
     <string name="plural_only">Plural only</string>
     <string name="no_result">No entry for \"%1$s\"</string>
     <string name="dictionary_load_failed">The dictionary could not be loaded. Close the app and try again; if this persists, reinstall to re-seed it.</string>
-    <string name="about_link">About</string>
     <string name="about_title">About DerDieDas</string>
     <string name="about_attribution">German word data comes from the German Wiktionary, used under the CC BY-SA 4.0 and GFDL licenses.</string>
     <string name="about_source">de.wiktionary.org, dump %1$s</string>

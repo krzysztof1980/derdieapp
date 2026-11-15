@@ -67,7 +67,10 @@ class NightModeInvarianceTest {
     @Test
     fun aboutDialogOpensUnderNightQualifiers() {
         showSearch()
-        compose.onNodeWithTag(UiTags.ABOUT).performClick()
+        // Amendment #4: dialog now reached via the overflow menu.
+        compose.onNodeWithTag(UiTags.MENU).performClick()
+        compose.waitUntilExactlyOneExists(hasTestTag(UiTags.MENU_ITEM), SETTLE_TIMEOUT_MS)
+        compose.onNodeWithTag(UiTags.MENU_ITEM).performClick()
         compose.waitUntilExactlyOneExists(hasTestTag(UiTags.ABOUT_BODY), SETTLE_TIMEOUT_MS)
     }
 

@@ -11,12 +11,16 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
@@ -207,12 +211,15 @@ fun SearchScreen(
             val fieldShape = RoundedCornerShape(12.dp)
             val fieldInteraction = remember { MutableInteractionSource() }
             val fieldFocused by fieldInteraction.collectIsFocusedAsState()
+            var menuOpen by remember { mutableStateOf(false) }
+            var showAbout by remember { mutableStateOf(false) }
+            Row(verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
                 modifier = Modifier
-                    .padding(horizontal = 16.dp) // 2026-11-15 device fix: never edge-flush
-                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(start = 16.dp, end = 4.dp) // 2026-11-15 device fix: never edge-flush
                     .border(
                         width = 1.5.dp,
                         color = if (fieldFocused) {
@@ -262,6 +269,34 @@ fun SearchScreen(
                     unfocusedContainerColor = Color.Transparent,
                 ),
             )
+                // Amendment #4 (2026-11-15): the About attribution moved from a footer
+                // link into this overflow — one entry today, room for settings tomorrow.
+                Box {
+                    IconButton(
+                        onClick = { menuOpen = true },
+                        modifier = Modifier
+                            .testTag(UiTags.MENU)
+                            .padding(end = 4.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = stringResource(R.string.menu_desc),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.menu_about)) },
+                            onClick = {
+                                menuOpen = false
+                                showAbout = true
+                            },
+                            modifier = Modifier.testTag(UiTags.MENU_ITEM),
+                        )
+                    }
+                }
+            }
+            if (showAbout) AboutDialog(meta = meta, onDismiss = { showAbout = false })
             when (answer) {
                 // no answer: either the dictionary is still opening / the query is blank,
                 // or it refused to open — then show the plain error screen, no stack trace
@@ -271,7 +306,6 @@ fun SearchScreen(
                 is Suggestions -> SuggestionRows(answer.entries, dark) { query = it }
                 NoResult -> NoResultLine(resultQuery)
             }
-            AboutLink(meta = meta, modifier = Modifier.padding(start = 12.dp))
             visibleWash?.let {
                 // Zero-size but in the semantics tree: tests assert the active wash color
                 // as its hex instead of screenshotting pixels.

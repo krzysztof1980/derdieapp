@@ -45,7 +45,8 @@ internal object UiTags {
     const val NO_RESULT = "noResult"
     const val DICTIONARY_ERROR = "dictionaryError"
     const val TOGGLE = "toggle"
-    const val ABOUT = "about"
+    const val MENU = "menu" // chrome: overflow button on the search row (2026-11-15)
+    const val MENU_ITEM = "menuItem" // chrome: an entry in that overflow menu
     const val ABOUT_BODY = "aboutBody"
 }
 
