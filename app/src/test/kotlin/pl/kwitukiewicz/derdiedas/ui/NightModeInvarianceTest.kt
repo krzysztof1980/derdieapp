@@ -25,9 +25,9 @@ import pl.kwitukiewicz.derdiedas.ui.theme.DerdiedasTheme
 
 /**
  * Single-appearance invariant on a system-dark phone: with Robolectric forced to the
- * `night` qualifier, the screen must render exactly what a day-mode phone shows —
+ * night qualifier, the screen must render exactly what a day-mode phone shows —
  * the LIGHT wash hex for `virus` (identical to SearchScreenTest's day assertion), an
- * opaque query field, and a still-light Material 3 scheme (the [SchemeProbe]; the
+ * outlined query field, and a still-light Material 3 scheme (the [SchemeProbe]; the
  * original phone bug was dark washes under a silently light scheme). Flipping the
  * appearance signal — `WashPalette.appLooksDark` or a re-added isSystemInDarkTheme()
  * pass-through — turns this test red, which is the regression gate this gap once lacked.

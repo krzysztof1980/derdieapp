@@ -1,9 +1,12 @@
 package pl.kwitukiewicz.derdiedas
 
 import android.content.Context
+import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import pl.kwitukiewicz.derdiedas.core.LookupEngine
 import pl.kwitukiewicz.derdiedas.data.SqliteWordRepository
 import pl.kwitukiewicz.derdiedas.data.WordsDb
@@ -21,6 +24,16 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Edge to edge: content (the wash) draws under transparent system bars. Both
+        // styles are pinned to `light` — dark icons, transparent scrims — because the
+        // app is single-appearance (WashPalette.appLooksDark): the bar treatment must
+        // not follow the system either. SearchScreen insets its content via
+        // statusBars/navigationBars padding, which is what keeps the field tappable
+        // below the status strip.
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
+        )
         val appContext: Context = applicationContext
         setContent {
             DerdiedasTheme {

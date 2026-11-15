@@ -3,16 +3,25 @@ package pl.kwitukiewicz.derdiedas.ui
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -25,11 +34,15 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import android.util.Log
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -45,7 +58,11 @@ import pl.kwitukiewicz.derdiedas.core.washGenderKey
 
 /**
  * The app's main screen: a query field over an answer area, the whole [Box] washed in the
- * answer's gender color. [engineLoader] (which copies and opens the bundled database) runs
+ * answer's gender color. The field is an outlined box (WashPalette's chrome outline colors,
+ * always a visible border) and grabs focus plus the soft keyboard once per process entry;
+ * the content column sits below the status-bar inset and the Box's content above the
+ * navigation-bar inset — the wash paints edge to edge under both. [engineLoader] (which
+ * copies and opens the bundled database) runs
  * once, on [Dispatchers.IO], behind a [produceState] — until it resolves the wash stays
  * blank. A loader that refuses the dictionary (foreign schema, missing asset, fold drift)
  * lands on a plain [DictionaryLoad.Failed] screen instead of crashing the launch.
@@ -75,6 +92,21 @@ fun SearchScreen(
     // every system mode.
     val dark = WashPalette.appLooksDark
     var query by rememberSaveable { mutableStateOf("") }
+    val focusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    LaunchedEffect(Unit) {
+        // Autofocus + keyboard on launch, once per process entry: opening the app goes
+        // straight to typing, and an Activity recreation inside the same process does
+        // not fight the user for the IME. runCatching because unit tests drive input
+        // through semantics and the Robolectric JVM has no real IME to show — a
+        // keyboard-less launch must still survive.
+        if (keyboardShownOnLaunch.compareAndSet(false, true)) {
+            runCatching {
+                focusRequester.requestFocus()
+                keyboardController?.show()
+            }
+        }
+    }
     var result by remember { mutableStateOf<LookupResult?>(null) }
     // The query `result` was computed for — quoted by NoResult instead of the live field,
     // so the line never names a search whose answer is not on screen yet.
@@ -146,31 +178,58 @@ fun SearchScreen(
     )
 
     Box(
+        // The wash paints edge to edge under the transparent bars; navigationBarsPadding
+        // (after background) keeps the content — landscape navigation bars and cutouts
+        // included — off the unusable strips, and statusBarsPadding on the Column below
+        // is what finally puts the field under, not behind, the status icons.
         modifier = Modifier
             .testTag(UiTags.WASH)
             .fillMaxSize()
-            .background(wash),
+            .background(wash)
+            .navigationBarsPadding(),
     ) {
-        Column {
-            TextField(
+        Column(modifier = Modifier.statusBarsPadding()) {
+            // Unmistakably an input box on every wash: an outlined field with the
+            // material3 border transparented and a hand-drawn 1.5 dp outline in its
+            // place — resting gray, focused darker, both pinned in WashPalette and
+            // floored at >= 1.5:1 by WashPaletteTest — over a transparent container so
+            // the wash shows through. Cursor and placeholder inherit the pinned light
+            // scheme (always on-color in this single-appearance app).
+            val fieldShape = RoundedCornerShape(12.dp)
+            val fieldInteraction = remember { MutableInteractionSource() }
+            val fieldFocused by fieldInteraction.collectIsFocusedAsState()
+            OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .testTag(UiTags.QUERY_FIELD),
+                    .border(
+                        width = 1.5.dp,
+                        color = if (fieldFocused) {
+                            WashPalette.fieldOutlineFocused()
+                        } else {
+                            WashPalette.fieldOutline()
+                        },
+                        shape = fieldShape,
+                    )
+                    .testTag(UiTags.QUERY_FIELD)
+                    .focusRequester(focusRequester),
                 placeholder = { Text(stringResource(R.string.query_hint)) },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = null, // decoration; the field's own semantics carry the input
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                },
                 singleLine = true,
-                colors = TextFieldDefaults.colors(
-                    // Filled variant on the palette's chrome container: opaque white on
-                    // both states, so the field reads as a raised box on every pastel
-                    // wash. Placeholder/cursor/label inherit the pinned light scheme —
-                    // visible on the container in every system mode. Resting state is
-                    // container-only (no baseline); the focused indicator uses the
-                    // scheme's own ink.
-                    focusedContainerColor = WashPalette.fieldContainer(),
-                    unfocusedContainerColor = WashPalette.fieldContainer(),
-                    unfocusedIndicatorColor = Color.Transparent,
-                    focusedIndicatorColor = MaterialTheme.colorScheme.onSurface,
+                shape = fieldShape,
+                interactionSource = fieldInteraction,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color.Transparent,
+                    unfocusedBorderColor = Color.Transparent,
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
                 ),
             )
             when (answer) {
@@ -202,6 +261,9 @@ fun SearchScreen(
 }
 
 private const val DEBOUNCE_MS = 150L
+
+/** Autofocus gate: the launch keyboard shows once per process, never on recreations. */
+private val keyboardShownOnLaunch = AtomicBoolean(false)
 
 /** The three shapes of the off-main dictionary open: pending, usable, refused for good. */
 private sealed interface DictionaryLoad {

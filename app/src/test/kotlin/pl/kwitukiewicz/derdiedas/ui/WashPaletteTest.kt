@@ -24,10 +24,10 @@ class WashPaletteTest {
 
     @Test
     fun washHexesArePinned() {
-        assertEquals("FFEAF0FB", argb(WashPalette.wash(Gender.MASKULINUM, dark = false)))
-        assertEquals("FFFBECEA", argb(WashPalette.wash(Gender.FEMININUM, dark = false)))
-        assertEquals("FFE9F5EE", argb(WashPalette.wash(Gender.NEUTRUM, dark = false)))
-        assertEquals("FFF1F2F4", argb(WashPalette.wash(Gender.UTRUM, dark = false)))
+        assertEquals("FFBFD7F7", argb(WashPalette.wash(Gender.MASKULINUM, dark = false)))
+        assertEquals("FFF6C9C1", argb(WashPalette.wash(Gender.FEMININUM, dark = false)))
+        assertEquals("FFC3E8D3", argb(WashPalette.wash(Gender.NEUTRUM, dark = false)))
+        assertEquals("FFE2E4E8", argb(WashPalette.wash(Gender.UTRUM, dark = false)))
         assertEquals("FF17203A", argb(WashPalette.wash(Gender.MASKULINUM, dark = true)))
         assertEquals("FF2B1512", argb(WashPalette.wash(Gender.FEMININUM, dark = true)))
         assertEquals("FF10231A", argb(WashPalette.wash(Gender.NEUTRUM, dark = true)))
@@ -36,10 +36,10 @@ class WashPaletteTest {
 
     @Test
     fun accentHexesArePinned() {
-        assertEquals("FF235ABC", argb(WashPalette.accent(Gender.MASKULINUM, dark = false)))
-        assertEquals("FFAB3428", argb(WashPalette.accent(Gender.FEMININUM, dark = false)))
-        assertEquals("FF236B43", argb(WashPalette.accent(Gender.NEUTRUM, dark = false)))
-        assertEquals("FF5E5E62", argb(WashPalette.accent(Gender.UTRUM, dark = false)))
+        assertEquals("FF1C4997", argb(WashPalette.accent(Gender.MASKULINUM, dark = false)))
+        assertEquals("FF8C2B21", argb(WashPalette.accent(Gender.FEMININUM, dark = false)))
+        assertEquals("FF1C5636", argb(WashPalette.accent(Gender.NEUTRUM, dark = false)))
+        assertEquals("FF4B4B4E", argb(WashPalette.accent(Gender.UTRUM, dark = false)))
         assertEquals("FF6F99E4", argb(WashPalette.accent(Gender.MASKULINUM, dark = true)))
         assertEquals("FFDE7E75", argb(WashPalette.accent(Gender.FEMININUM, dark = true)))
         assertEquals("FF39AD6C", argb(WashPalette.accent(Gender.NEUTRUM, dark = true)))
@@ -48,33 +48,39 @@ class WashPaletteTest {
 
     @Test
     fun mutedHexIsPinned() {
-        assertEquals("FF6B6C71", argb(WashPalette.onWashMuted(dark = false)))
+        assertEquals("FF5A5A5F", argb(WashPalette.onWashMuted(dark = false)))
         assertEquals("FF87888D", argb(WashPalette.onWashMuted(dark = true)))
     }
 
     @Test
-    fun fieldContainerHexIsPinned() {
-        assertEquals("FFFFFFFF", argb(WashPalette.fieldContainer()))
+    fun fieldOutlineHexesArePinned() {
+        assertEquals("FF79747E", argb(WashPalette.fieldOutline()))
+        assertEquals("FF48484B", argb(WashPalette.fieldOutlineFocused()))
     }
 
     /**
-     * Field-container separability — UI chrome, outside the AA-locked gender system:
-     * it must read as a box against every wash it can sit on (>= 1.1:1, a luminance
-     * step of its own, no text claim). The single-appearance app renders only the
-     * light family, but the dark washes are kept for a possible two-appearance mode,
-     * so both sides are checked.
+     * Query-field outline separability — UI chrome, outside the AA-locked gender
+     * system: the outlined field's discoverability is its border, so both states
+     * must clear >= 1.5:1 against every wash of both families (the dark side is
+     * kept for a possible two-appearance mode).
      */
     @Test
-    fun fieldContainerSeparatesFromEveryWash() {
-        val container = hex(WashPalette.fieldContainer())
+    fun fieldOutlinesClearTheFloorOnEveryWash() {
+        val outlines = listOf(
+            "fieldOutline" to hex(WashPalette.fieldOutline()),
+            "fieldOutlineFocused" to hex(WashPalette.fieldOutlineFocused()),
+        )
         val groups = listOf(Gender.MASKULINUM, Gender.FEMININUM, Gender.NEUTRUM, Gender.UTRUM)
         for (dark in listOf(false, true)) {
             for (g in groups) {
-                val ratio = contrast(container, hex(WashPalette.wash(g, dark)))
-                assertTrue(
-                    "fieldContainer on wash($g, dark=$dark) is ${"%.2f".format(ratio)} < 1.1",
-                    ratio >= 1.1,
-                )
+                val washHex = hex(WashPalette.wash(g, dark))
+                for ((name, outline) in outlines) {
+                    val ratio = contrast(outline, washHex)
+                    assertTrue(
+                        "$name on wash($g, dark=$dark) is ${"%.2f".format(ratio)} < 1.5",
+                        ratio >= 1.5,
+                    )
+                }
             }
         }
     }

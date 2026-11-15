@@ -5,11 +5,14 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.waitUntilExactlyOneExists
+import androidx.compose.ui.unit.dp
+import androidx.test.core.app.ApplicationProvider
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
@@ -50,6 +53,25 @@ class SearchScreenTest {
 
     private fun type(term: String) {
         compose.onNode(hasSetTextAction()).performTextReplacement(term)
+    }
+
+    /**
+     * The phone defect this pins: EditText was laid out at [0,0] — ~75% of the field
+     * hid behind the status bar. The test environment reports a real status-bar strip
+     * (Robolectric's `status_bar_height` dimen, 56 px at the default density), so the
+     * statusBarsPadding on the screen's Column must keep the field strictly below it.
+     */
+    @Test
+    fun queryFieldStartsBelowTheStatusBarStrip() {
+        showSearch()
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val stripId = context.resources.getIdentifier("status_bar_height", "dimen", "android")
+        val stripDp = with(context.resources) {
+            if (stripId > 0) getDimension(stripId) / displayMetrics.density else 0f
+        }.dp
+        assertTrue("status strip should be reported by the test environment", stripDp > 0.dp)
+        val top = compose.onNodeWithTag(UiTags.QUERY_FIELD).getBoundsInRoot().top
+        assertTrue("field top=$top must sit below the $stripDp status strip", top >= stripDp)
     }
 
     @Test
@@ -181,7 +203,7 @@ class SearchScreenTest {
     }
 
     private companion object {
-        const val DAS_WASH_LIGHT_HEX = "#FFE9F5EE"
+        const val DAS_WASH_LIGHT_HEX = "#FFC3E8D3"
         const val SETTLE_TIMEOUT_MS = 30_000L
     }
 }
