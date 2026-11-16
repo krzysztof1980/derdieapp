@@ -1,5 +1,6 @@
 package pl.kwitukiewicz.derdiedas.exporter
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -9,6 +10,8 @@ import pl.kwitukiewicz.derdiedas.core.foldForm
 import wiktiopeggynary.model.substantiv.Substantiv
 
 class AppDbRowsTest {
+
+    private val json = ObjectMapper()
 
     private fun substantivs(name: String) = parsePage(readFixture(name)).filterIsInstance<Substantiv>()
 
@@ -39,6 +42,29 @@ class AppDbRowsTest {
                 """"Militär: seegehende Einheiten einer bestimmten Größenordnung bei der Marine"]""",
             row.meaningLinesJson,
         )
+    }
+
+    @Test
+    fun `group label prefixes each of its sub meanings as one line`() {
+        val row = entryRow(substantivs("Quatsch")[0], 0)!!
+        val lines = json.readTree(row.meaningLinesJson)
+
+        assertEquals(5, lines.size())
+        lines.forEach { line ->
+            assertTrue(line.asText().startsWith("[umgangssprachlich]: "), line.asText())
+        }
+        assertTrue(lines[0].asText().contains("unkluge"), lines[0].asText())
+    }
+
+    @Test
+    fun `numbered parent keeps its line and sub meanings follow as dashed lines`() {
+        val dirham = substantivs("Dirham").first { it.meanings.size > 1 }
+        val lines = json.readTree(entryRow(dirham, 0)!!.meaningLinesJson)
+        val dashed = lines.filter { it.asText().startsWith("– ") }
+
+        assertTrue(lines[0].asText().isNotEmpty())
+        assertEquals(6, dashed.size, lines.joinToString("\n"))
+        assertTrue(lines[1].asText().startsWith("– "), lines.joinToString("\n"))
     }
 
     @Test

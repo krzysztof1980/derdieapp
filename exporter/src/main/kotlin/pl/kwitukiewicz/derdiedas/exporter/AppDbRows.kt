@@ -53,9 +53,26 @@ fun entryRow(e: Substantiv, pageOrder: Int): EntryRow? {
         kind = kindOf(e.attributes),
         genders = genders.joinToString(",") { it.name },
         pluralForms = pluralForms(e),
-        meaningLinesJson = MEANINGS_JSON.writeValueAsString(e.meanings.map { flatten(it.text) }),
+        meaningLinesJson = MEANINGS_JSON.writeValueAsString(meaningLines(e)),
     )
 }
+
+/**
+ * One display line per meaning: numbered meanings keep their own line and their
+ * sub-meanings follow as en-dash lines; an item-number-less group label (parser's
+ * LabelMeaning) is never a line of its own — it prefixes each of its sub-meanings,
+ * so `[1]` of `Quatsch` reads "[umgangssprachlich]: unkluge …" instead of the bare
+ * context tag swallowing the answer text.
+ */
+private fun meaningLines(e: Substantiv): List<String> =
+    e.meanings.flatMap { m ->
+        val text = flatten(m.text)
+        when {
+            m.subMeanings.isEmpty() -> listOf(text)
+            m.numbers.isNullOrEmpty() -> m.subMeanings.map { s -> "$text ${flatten(s.text)}" }
+            else -> listOf(text) + m.subMeanings.map { s -> "– ${flatten(s.text)}" }
+        }
+    }
 
 /**
  * One row per distinct (variant, numerus, kasus) of the inflection tables, skipping
