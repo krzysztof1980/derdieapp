@@ -1,6 +1,6 @@
 # HandyGerman: Artikel
 
-[![CI](https://github.com/krzysztof1980/derdieapp/actions/workflows/ci.yml/badge.svg)](https://github.com/krzysztof1980/derdieapp/actions/workflows/ci.yml)
+[![CI](https://github.com/krzysztof1980/handygerman-artikel/actions/workflows/ci.yml/badge.svg)](https://github.com/krzysztof1980/handygerman-artikel/actions/workflows/ci.yml)
 
 Find the gender of any German noun — `der`, `die` or `das` — from a fully offline app.
 Type a noun or an inflected form (`Mutter`, `Mueller`, `Kindern`); the answer washes in
@@ -147,8 +147,8 @@ TODO — Play Store screenshots (light + dark, 1080×1920 and 1920×1080) before
 - [ ] Publish a privacy policy page ("no data collected") and link it in the listing.
 - [ ] Dump-attribute the launcher icon (real font outlines instead of hand-built paths) —
       and attribute the font if a different one is chosen.
-- [ ] Optionally rename the GitHub repo to `handygerman` (app display name, package and
-      Gradle build are already renamed; on-disk dir is still `derdieapp`).
+- [ ] Optionally rename the on-disk dir `derdieapp/` (GitHub repo is already
+      `krzysztof1980/handygerman-artikel`; GitHub redirects old clone URLs).
 - [ ] Fill `signingConfig` on the release build type (currently unsigned on purpose).
 
 ## CI
