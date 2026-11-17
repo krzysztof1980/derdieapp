@@ -62,7 +62,7 @@ first launch. Steps name their repo; all relative paths are from that repo's roo
 2. This repo's root — export the index into a plain database under a pinned dir:
 
    ```sh
-   # derdieapp/
+   # handygerman-artikel/
    ./gradlew :exporter:run --args="--out build/export --dump dewiktionary-20260901-pages-articles-multistream.xml --es-user elastic:<pass>"
    ```
 
@@ -70,10 +70,10 @@ first launch. Steps name their repo; all relative paths are from that repo's roo
    the app's About dialog attributes. The run task's working dir is the exporter project,
    so a relative `--out build/export` lands in `exporter/build/export/`.
 
-3. Still `derdieapp/` root — gzip the one file that is an app asset:
+3. Still `handygerman-artikel/` root — gzip the one file that is an app asset:
 
    ```sh
-   # derdieapp/  (exporter wrote exporter/build/export/nouns.db)
+   # handygerman-artikel/  (exporter wrote exporter/build/export/nouns.db)
    mkdir -p app/src/main/assets
    gzip -kc exporter/build/export/nouns.db > app/src/main/assets/nouns.db.gzip
    ```
@@ -147,8 +147,6 @@ TODO — Play Store screenshots (light + dark, 1080×1920 and 1920×1080) before
 - [ ] Publish a privacy policy page ("no data collected") and link it in the listing.
 - [ ] Dump-attribute the launcher icon (real font outlines instead of hand-built paths) —
       and attribute the font if a different one is chosen.
-- [ ] Optionally rename the on-disk dir `derdieapp/` (GitHub repo is already
-      `krzysztof1980/handygerman-artikel`; GitHub redirects old clone URLs).
 - [ ] Fill `signingConfig` on the release build type (currently unsigned on purpose).
 
 ## CI
