@@ -1,12 +1,12 @@
-package pl.kwitukiewicz.handygerman.core
+package pl.kwitukiewicz.handygerman.artikel.core
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import pl.kwitukiewicz.handygerman.core.Gender.MASKULINUM
-import pl.kwitukiewicz.handygerman.core.Gender.NEUTRUM
-import pl.kwitukiewicz.handygerman.core.Kind.PERSON_NAME
+import pl.kwitukiewicz.handygerman.artikel.core.Gender.MASKULINUM
+import pl.kwitukiewicz.handygerman.artikel.core.Gender.NEUTRUM
+import pl.kwitukiewicz.handygerman.artikel.core.Kind.PERSON_NAME
 
 /**
  * The Task 6 rule chain over the Task 5 fixture (via [FakeWordRepository]):

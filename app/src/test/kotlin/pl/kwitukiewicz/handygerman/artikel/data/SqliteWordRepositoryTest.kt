@@ -12,11 +12,11 @@ import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
-import pl.kwitukiewicz.handygerman.core.FakeWordRepository
-import pl.kwitukiewicz.handygerman.core.Gender
-import pl.kwitukiewicz.handygerman.core.Kind
-import pl.kwitukiewicz.handygerman.core.NounsSchema
-import pl.kwitukiewicz.handygerman.core.foldForm
+import pl.kwitukiewicz.handygerman.artikel.core.FakeWordRepository
+import pl.kwitukiewicz.handygerman.artikel.core.Gender
+import pl.kwitukiewicz.handygerman.artikel.core.Kind
+import pl.kwitukiewicz.handygerman.artikel.core.NounsSchema
+import pl.kwitukiewicz.handygerman.artikel.core.foldForm
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream

@@ -9,7 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import pl.kwitukiewicz.handygerman.artikel.R
-import pl.kwitukiewicz.handygerman.core.NounsSchema
+import pl.kwitukiewicz.handygerman.artikel.core.NounsSchema
 
 /**
  * Attribution dialog (opened from the search row's overflow menu since Amendment #4):

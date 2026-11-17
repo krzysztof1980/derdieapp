@@ -1,4 +1,4 @@
-package pl.kwitukiewicz.handygerman.exporter
+package pl.kwitukiewicz.handygerman.artikel.exporter
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.apache.http.HttpHost
@@ -12,7 +12,7 @@ import org.slf4j.LoggerFactory
 /** Index populated by the wiktio companion plan; `_id`s are `%012d-%02d` page-order ids. */
 const val ES_INDEX = "dewiktionary_entries"
 
-private val log = LoggerFactory.getLogger("pl.kwitukiewicz.handygerman.exporter.EsScroll")
+private val log = LoggerFactory.getLogger("pl.kwitukiewicz.handygerman.artikel.exporter.EsScroll")
 
 /**
  * Streams every document of [ES_INDEX] through [onDoc] via a scroll search

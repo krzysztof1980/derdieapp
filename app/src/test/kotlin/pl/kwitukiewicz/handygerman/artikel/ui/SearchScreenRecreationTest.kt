@@ -19,9 +19,9 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import pl.kwitukiewicz.handygerman.core.FakeWordRepository
-import pl.kwitukiewicz.handygerman.core.Gender
-import pl.kwitukiewicz.handygerman.core.LookupEngine
+import pl.kwitukiewicz.handygerman.artikel.core.FakeWordRepository
+import pl.kwitukiewicz.handygerman.artikel.core.Gender
+import pl.kwitukiewicz.handygerman.artikel.core.LookupEngine
 
 /**
  * Pins the `rememberSaveable` query: type `virus`, recreate the Activity (the rotation and

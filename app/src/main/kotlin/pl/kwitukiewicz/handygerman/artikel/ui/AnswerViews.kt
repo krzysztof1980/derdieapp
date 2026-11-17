@@ -19,11 +19,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import pl.kwitukiewicz.handygerman.artikel.R
-import pl.kwitukiewicz.handygerman.core.Candidate
-import pl.kwitukiewicz.handygerman.core.Entry
-import pl.kwitukiewicz.handygerman.core.articlesText
-import pl.kwitukiewicz.handygerman.core.isPluralOnly
-import pl.kwitukiewicz.handygerman.core.washGenderKey
+import pl.kwitukiewicz.handygerman.artikel.core.Candidate
+import pl.kwitukiewicz.handygerman.artikel.core.Entry
+import pl.kwitukiewicz.handygerman.artikel.core.articlesText
+import pl.kwitukiewicz.handygerman.artikel.core.isPluralOnly
+import pl.kwitukiewicz.handygerman.artikel.core.washGenderKey
 
 /**
  * The semantics-tag vocabulary pinned by the plan: Tasks 7-8 tests match nodes by these

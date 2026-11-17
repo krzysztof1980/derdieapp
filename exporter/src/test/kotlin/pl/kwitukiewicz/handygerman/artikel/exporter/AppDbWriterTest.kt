@@ -1,12 +1,12 @@
-package pl.kwitukiewicz.handygerman.exporter
+package pl.kwitukiewicz.handygerman.artikel.exporter
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
-import pl.kwitukiewicz.handygerman.core.Kind
-import pl.kwitukiewicz.handygerman.core.NounsSchema
-import pl.kwitukiewicz.handygerman.core.foldForm
+import pl.kwitukiewicz.handygerman.artikel.core.Kind
+import pl.kwitukiewicz.handygerman.artikel.core.NounsSchema
+import pl.kwitukiewicz.handygerman.artikel.core.foldForm
 import java.nio.file.Path
 import java.sql.DriverManager
 

@@ -1,4 +1,4 @@
-package pl.kwitukiewicz.handygerman.core
+package pl.kwitukiewicz.handygerman.artikel.core
 
 import java.text.Normalizer
 import java.util.Locale

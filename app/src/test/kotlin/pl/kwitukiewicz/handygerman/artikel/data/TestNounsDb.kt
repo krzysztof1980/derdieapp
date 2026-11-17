@@ -1,8 +1,8 @@
 package pl.kwitukiewicz.handygerman.artikel.data
 
-import pl.kwitukiewicz.handygerman.core.FakeWordRepository
-import pl.kwitukiewicz.handygerman.core.NounsSchema
-import pl.kwitukiewicz.handygerman.core.foldForm
+import pl.kwitukiewicz.handygerman.artikel.core.FakeWordRepository
+import pl.kwitukiewicz.handygerman.artikel.core.NounsSchema
+import pl.kwitukiewicz.handygerman.artikel.core.foldForm
 import java.nio.file.Path
 import java.sql.DriverManager
 

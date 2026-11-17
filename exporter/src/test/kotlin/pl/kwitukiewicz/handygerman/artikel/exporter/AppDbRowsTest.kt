@@ -1,12 +1,12 @@
-package pl.kwitukiewicz.handygerman.exporter
+package pl.kwitukiewicz.handygerman.artikel.exporter
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import pl.kwitukiewicz.handygerman.core.Kind
-import pl.kwitukiewicz.handygerman.core.foldForm
+import pl.kwitukiewicz.handygerman.artikel.core.Kind
+import pl.kwitukiewicz.handygerman.artikel.core.foldForm
 import wiktiopeggynary.model.substantiv.Substantiv
 
 class AppDbRowsTest {

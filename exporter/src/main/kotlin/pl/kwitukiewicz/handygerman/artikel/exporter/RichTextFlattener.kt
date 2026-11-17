@@ -1,4 +1,4 @@
-package pl.kwitukiewicz.handygerman.exporter
+package pl.kwitukiewicz.handygerman.artikel.exporter
 
 import wiktiopeggynary.model.markup.CompoundRichTextComponent
 import wiktiopeggynary.model.markup.CursiveBlock

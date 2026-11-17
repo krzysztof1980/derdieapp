@@ -30,7 +30,7 @@ dependencies {
 }
 
 application {
-    mainClass = "pl.kwitukiewicz.handygerman.exporter.ExportMainKt"
+    mainClass = "pl.kwitukiewicz.handygerman.artikel.exporter.ExportMainKt"
 }
 
 tasks.named<JavaExec>("run") {

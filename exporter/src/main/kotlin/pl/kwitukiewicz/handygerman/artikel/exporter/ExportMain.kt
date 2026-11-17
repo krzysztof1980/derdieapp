@@ -1,6 +1,6 @@
-package pl.kwitukiewicz.handygerman.exporter
+package pl.kwitukiewicz.handygerman.artikel.exporter
 
-import pl.kwitukiewicz.handygerman.core.NounsSchema
+import pl.kwitukiewicz.handygerman.artikel.core.NounsSchema
 import wiktiopeggynary.model.WiktionaryEntrySerializer
 import wiktiopeggynary.model.substantiv.Substantiv
 import java.nio.file.Files
@@ -8,7 +8,7 @@ import java.nio.file.Path
 import kotlin.system.exitProcess
 import kotlin.system.measureTimeMillis
 
-private val log = org.slf4j.LoggerFactory.getLogger("pl.kwitukiewicz.handygerman.exporter.ExportMain")
+private val log = org.slf4j.LoggerFactory.getLogger("pl.kwitukiewicz.handygerman.artikel.exporter.ExportMain")
 
 /**
  * Turns scrolled index documents into the two DB tables.

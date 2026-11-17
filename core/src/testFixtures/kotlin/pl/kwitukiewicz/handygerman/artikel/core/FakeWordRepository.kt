@@ -1,11 +1,11 @@
-package pl.kwitukiewicz.handygerman.core
+package pl.kwitukiewicz.handygerman.artikel.core
 
-import pl.kwitukiewicz.handygerman.core.Gender.FEMININUM
-import pl.kwitukiewicz.handygerman.core.Gender.MASKULINUM
-import pl.kwitukiewicz.handygerman.core.Gender.NEUTRUM
-import pl.kwitukiewicz.handygerman.core.Gender.PLURAL
-import pl.kwitukiewicz.handygerman.core.Kind.PERSON_NAME
-import pl.kwitukiewicz.handygerman.core.Kind.WORD
+import pl.kwitukiewicz.handygerman.artikel.core.Gender.FEMININUM
+import pl.kwitukiewicz.handygerman.artikel.core.Gender.MASKULINUM
+import pl.kwitukiewicz.handygerman.artikel.core.Gender.NEUTRUM
+import pl.kwitukiewicz.handygerman.artikel.core.Gender.PLURAL
+import pl.kwitukiewicz.handygerman.artikel.core.Kind.PERSON_NAME
+import pl.kwitukiewicz.handygerman.artikel.core.Kind.WORD
 
 /**
  * In-memory [WordRepository] mirroring the Task 5 fixture (`TestNounsDb`): same entries,

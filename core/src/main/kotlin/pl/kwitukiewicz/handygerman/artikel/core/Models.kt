@@ -1,4 +1,4 @@
-package pl.kwitukiewicz.handygerman.core
+package pl.kwitukiewicz.handygerman.artikel.core
 
 /** One Wiktionary entry: what a page asserts about a headword, ready for display. */
 data class Entry(

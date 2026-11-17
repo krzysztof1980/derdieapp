@@ -1,6 +1,6 @@
-package pl.kwitukiewicz.handygerman.exporter
+package pl.kwitukiewicz.handygerman.artikel.exporter
 
-import pl.kwitukiewicz.handygerman.core.NounsSchema
+import pl.kwitukiewicz.handygerman.artikel.core.NounsSchema
 import java.nio.file.Files
 import java.nio.file.Path
 import java.security.MessageDigest

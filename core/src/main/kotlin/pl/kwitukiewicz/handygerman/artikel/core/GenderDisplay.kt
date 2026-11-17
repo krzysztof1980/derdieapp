@@ -1,4 +1,4 @@
-package pl.kwitukiewicz.handygerman.core
+package pl.kwitukiewicz.handygerman.artikel.core
 
 /** Wiktionary `genus` values plus the plural pseudo-genders the exporter emits. */
 enum class Gender { MASKULINUM, FEMININUM, NEUTRUM, UTRUM, PLURAL, M_PLURAL, F_PLURAL }

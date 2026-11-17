@@ -7,7 +7,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import pl.kwitukiewicz.handygerman.core.Gender
+import pl.kwitukiewicz.handygerman.artikel.core.Gender
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow

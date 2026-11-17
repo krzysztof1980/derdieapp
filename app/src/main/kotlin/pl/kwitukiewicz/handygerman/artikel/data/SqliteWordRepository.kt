@@ -3,15 +3,15 @@ package pl.kwitukiewicz.handygerman.artikel.data
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import org.json.JSONArray
-import pl.kwitukiewicz.handygerman.core.Entry
-import pl.kwitukiewicz.handygerman.core.FormHit
-import pl.kwitukiewicz.handygerman.core.Gender
-import pl.kwitukiewicz.handygerman.core.Kind
-import pl.kwitukiewicz.handygerman.core.WordRepository
+import pl.kwitukiewicz.handygerman.artikel.core.Entry
+import pl.kwitukiewicz.handygerman.artikel.core.FormHit
+import pl.kwitukiewicz.handygerman.artikel.core.Gender
+import pl.kwitukiewicz.handygerman.artikel.core.Kind
+import pl.kwitukiewicz.handygerman.artikel.core.WordRepository
 
 /**
  * Read-only [WordRepository] over the exporter's `nouns.db`, on android.database.sqlite.
- * `form_folded` is indexed ([pl.kwitukiewicz.handygerman.core.NounsSchema.DDL]); the exact
+ * `form_folded` is indexed ([pl.kwitukiewicz.handygerman.artikel.core.NounsSchema.DDL]); the exact
  * lookup rides it, and the prefix scan groups by `form_folded` so autocompletion sees one
  * group per distinct form, in `page_order` within a group.
  */

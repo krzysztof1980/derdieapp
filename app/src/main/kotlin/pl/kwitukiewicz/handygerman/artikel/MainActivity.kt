@@ -9,7 +9,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import pl.kwitukiewicz.handygerman.core.LookupEngine
+import pl.kwitukiewicz.handygerman.artikel.core.LookupEngine
 import pl.kwitukiewicz.handygerman.artikel.data.SqliteWordRepository
 import pl.kwitukiewicz.handygerman.artikel.data.WordsDb
 import pl.kwitukiewicz.handygerman.artikel.ui.SearchScreen

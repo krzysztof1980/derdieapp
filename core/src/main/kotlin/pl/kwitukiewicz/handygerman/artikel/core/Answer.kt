@@ -1,4 +1,4 @@
-package pl.kwitukiewicz.handygerman.core
+package pl.kwitukiewicz.handygerman.artikel.core
 
 /** What the app screens as the answer to a lookup; [LookupResult.footerNames] rides along. */
 sealed interface Answer

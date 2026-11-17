@@ -1,4 +1,4 @@
-package pl.kwitukiewicz.handygerman.core
+package pl.kwitukiewicz.handygerman.artikel.core
 
 /**
  * The frozen on-disk format of `nouns.db`, declared once here: `:exporter` executes

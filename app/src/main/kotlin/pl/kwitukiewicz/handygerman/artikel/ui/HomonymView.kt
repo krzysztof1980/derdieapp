@@ -12,9 +12,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import pl.kwitukiewicz.handygerman.core.Homonyms
-import pl.kwitukiewicz.handygerman.core.articlesText
-import pl.kwitukiewicz.handygerman.core.washGenderKey
+import pl.kwitukiewicz.handygerman.artikel.core.Homonyms
+import pl.kwitukiewicz.handygerman.artikel.core.articlesText
+import pl.kwitukiewicz.handygerman.artikel.core.washGenderKey
 
 /**
  * Several entries share the typed form: a segmented article row — one [UiTags.TOGGLE]

@@ -1,7 +1,7 @@
 package pl.kwitukiewicz.handygerman.artikel.data
 
 import android.database.sqlite.SQLiteDatabase
-import pl.kwitukiewicz.handygerman.core.foldForm
+import pl.kwitukiewicz.handygerman.artikel.core.foldForm
 
 /**
  * The debug-build corpus self-check: the exporter wrote `forms.form_folded` with its copy

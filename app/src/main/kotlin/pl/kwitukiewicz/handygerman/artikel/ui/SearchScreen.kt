@@ -54,13 +54,13 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import pl.kwitukiewicz.handygerman.artikel.R
-import pl.kwitukiewicz.handygerman.core.Homonyms
-import pl.kwitukiewicz.handygerman.core.LookupEngine
-import pl.kwitukiewicz.handygerman.core.LookupResult
-import pl.kwitukiewicz.handygerman.core.NoResult
-import pl.kwitukiewicz.handygerman.core.Single
-import pl.kwitukiewicz.handygerman.core.Suggestions
-import pl.kwitukiewicz.handygerman.core.washGenderKey
+import pl.kwitukiewicz.handygerman.artikel.core.Homonyms
+import pl.kwitukiewicz.handygerman.artikel.core.LookupEngine
+import pl.kwitukiewicz.handygerman.artikel.core.LookupResult
+import pl.kwitukiewicz.handygerman.artikel.core.NoResult
+import pl.kwitukiewicz.handygerman.artikel.core.Single
+import pl.kwitukiewicz.handygerman.artikel.core.Suggestions
+import pl.kwitukiewicz.handygerman.artikel.core.washGenderKey
 
 /**
  * The app's main screen: a query field over an answer area, the whole [Box] washed in the

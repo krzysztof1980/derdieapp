@@ -3,7 +3,7 @@ package pl.kwitukiewicz.handygerman.artikel.data
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import pl.kwitukiewicz.handygerman.artikel.BuildConfig
-import pl.kwitukiewicz.handygerman.core.NounsSchema
+import pl.kwitukiewicz.handygerman.artikel.core.NounsSchema
 import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileOutputStream

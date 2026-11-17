@@ -1,4 +1,4 @@
-package pl.kwitukiewicz.handygerman.core
+package pl.kwitukiewicz.handygerman.artikel.core
 
 /**
  * The decision rules of a lookup, pure over the [WordRepository] seam:

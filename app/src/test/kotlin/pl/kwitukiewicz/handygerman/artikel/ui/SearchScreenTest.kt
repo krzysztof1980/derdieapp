@@ -25,10 +25,10 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import pl.kwitukiewicz.handygerman.core.FakeWordRepository
-import pl.kwitukiewicz.handygerman.core.FormHit
-import pl.kwitukiewicz.handygerman.core.LookupEngine
-import pl.kwitukiewicz.handygerman.core.WordRepository
+import pl.kwitukiewicz.handygerman.artikel.core.FakeWordRepository
+import pl.kwitukiewicz.handygerman.artikel.core.FormHit
+import pl.kwitukiewicz.handygerman.artikel.core.LookupEngine
+import pl.kwitukiewicz.handygerman.artikel.core.WordRepository
 
 /**
  * Pins the search screen's contract: the semantics-tag vocabulary Tasks 7-8 test against,

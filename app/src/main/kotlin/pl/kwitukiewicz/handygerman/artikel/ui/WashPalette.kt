@@ -1,8 +1,8 @@
 package pl.kwitukiewicz.handygerman.artikel.ui
 
 import androidx.compose.ui.graphics.Color
-import pl.kwitukiewicz.handygerman.core.Gender
-import pl.kwitukiewicz.handygerman.core.washGenderKey
+import pl.kwitukiewicz.handygerman.artikel.core.Gender
+import pl.kwitukiewicz.handygerman.artikel.core.washGenderKey
 
 /**
  * Gender wash colors from the design document's pinned palette. The plural

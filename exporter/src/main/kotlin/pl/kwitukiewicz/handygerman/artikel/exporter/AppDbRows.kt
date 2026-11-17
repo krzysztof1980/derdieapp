@@ -1,8 +1,8 @@
-package pl.kwitukiewicz.handygerman.exporter
+package pl.kwitukiewicz.handygerman.artikel.exporter
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import pl.kwitukiewicz.handygerman.core.Kind
-import pl.kwitukiewicz.handygerman.core.foldForm
+import pl.kwitukiewicz.handygerman.artikel.core.Kind
+import pl.kwitukiewicz.handygerman.artikel.core.foldForm
 import wiktiopeggynary.model.Kasus
 import wiktiopeggynary.model.Numerus
 import wiktiopeggynary.model.WiktionaryEntry

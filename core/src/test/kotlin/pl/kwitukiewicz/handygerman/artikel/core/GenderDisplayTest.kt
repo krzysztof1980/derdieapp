@@ -1,16 +1,16 @@
-package pl.kwitukiewicz.handygerman.core
+package pl.kwitukiewicz.handygerman.artikel.core
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import pl.kwitukiewicz.handygerman.core.Gender.FEMININUM
-import pl.kwitukiewicz.handygerman.core.Gender.MASKULINUM
-import pl.kwitukiewicz.handygerman.core.Gender.M_PLURAL
-import pl.kwitukiewicz.handygerman.core.Gender.NEUTRUM
-import pl.kwitukiewicz.handygerman.core.Gender.PLURAL
-import pl.kwitukiewicz.handygerman.core.Gender.UTRUM
-import pl.kwitukiewicz.handygerman.core.Gender.F_PLURAL
+import pl.kwitukiewicz.handygerman.artikel.core.Gender.FEMININUM
+import pl.kwitukiewicz.handygerman.artikel.core.Gender.MASKULINUM
+import pl.kwitukiewicz.handygerman.artikel.core.Gender.M_PLURAL
+import pl.kwitukiewicz.handygerman.artikel.core.Gender.NEUTRUM
+import pl.kwitukiewicz.handygerman.artikel.core.Gender.PLURAL
+import pl.kwitukiewicz.handygerman.artikel.core.Gender.UTRUM
+import pl.kwitukiewicz.handygerman.artikel.core.Gender.F_PLURAL
 
 class GenderDisplayTest {
 
