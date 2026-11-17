@@ -136,6 +136,10 @@ fun SearchScreen(
     var published by remember { mutableStateOf(PublishedAnswers()) }
     // Bumped by every save/unsave; Task 4's list keys its reload on it.
     val savedListEpoch = remember { mutableIntStateOf(0) }
+    // Bumped by every store write (toggle/unsave) right where it lands, off-Main — single
+    // writer at a time. The publish step's saved-set snapshot (publishedFor, on Default) is
+    // stale if this moved mid-snapshot; the generation guard in the publish then re-derives.
+    val savedWrites = remember { mutableIntStateOf(0) }
     val generation = remember { mutableIntStateOf(0) }
     // Lookups launch on the composition scope, NOT on the keyed effect below: replacing
     // the query cancels the effect but may not cancel the dispatched lookup — cooperative
@@ -195,7 +199,18 @@ fun SearchScreen(
         lookupScope.launch(Dispatchers.Default) {
             val searched = query
             val outcome = engine.lookup(searched)
-            val publishedAnswers = publishedFor(engine, savedRepository, outcome)
+            // Snapshot-vs-write race (Review Focus line 3): if a star write landed while this
+            // generation's saved set was being read, re-derive it. A flip completing after
+            // this re-check queues its Main block after this publish, so it applies on top.
+            val writesBefore = savedWrites.intValue
+            var publishedAnswers = publishedFor(engine, savedRepository, outcome)
+            if (savedWrites.intValue != writesBefore) {
+                publishedAnswers = publishedAnswers.copy(
+                    saved = publishedAnswers.identities.values
+                        .filter { savedRepository?.isSaved(it) == true }
+                        .toSet(),
+                )
+            }
             withContext(Dispatchers.Main) {
                 if (generation.intValue == revision) {
                     result = outcome
@@ -244,6 +259,7 @@ fun SearchScreen(
                     ),
                 )
             }
+            savedWrites.intValue++
             withContext(Dispatchers.Main) {
                 published = if (wasSaved) {
                     published.copy(saved = published.saved - identity)
@@ -260,6 +276,7 @@ fun SearchScreen(
     fun unsaveSavedWord(repository: SavedWordsRepository, saved: SavedWord) {
         lookupScope.launch(Dispatchers.IO) {
             repository.unsave(saved.identity)
+            savedWrites.intValue++
             withContext(Dispatchers.Main) {
                 published = published.copy(saved = published.saved - saved.identity)
                 savedListEpoch.intValue++

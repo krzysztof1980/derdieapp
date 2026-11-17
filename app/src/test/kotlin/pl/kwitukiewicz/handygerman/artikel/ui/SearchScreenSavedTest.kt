@@ -9,7 +9,9 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextReplacement
 import java.io.IOException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -94,7 +96,7 @@ class SearchScreenSavedTest {
         compose.typeQuery("")
         compose.typeQuery("Zeit")
         compose.awaitSemanticsText(UiTags.MEANING_LINE, "Zeit")
-        assertEquals("Remove from saved", compose.starDescription())
+        compose.awaitStarDescription("Remove from saved")
     }
 
     @Test
@@ -174,6 +176,75 @@ class SearchScreenSavedTest {
         compose.onNodeWithText("Bank").assertDoesNotExist() // …guard dropped it
         assertEquals("Save word", compose.starDescription()) // …star follows Zeit, not banken
         assertEquals(1, fakeSaved.saved.size)
+    }
+
+    @Test
+    fun savedToggleLandingWhileLookupFliesIsNotErasedByItsPublish() {
+        // Review Focus line 3, real interleaving: the `banken` snapshot's isSaved statement
+        // reads before the user's star write commits (modelled by [ParkedStaleReadStore],
+        // faithful to a mid-statement SQLite read), write + flip land mid-park, then the
+        // stale read returns. The publish must notice the store write (generation guard)
+        // and re-derive — otherwise the fresh star goes dark while the store holds the save.
+        val store = ParkedStaleReadStore(fakeSaved, staleOn = WordIdentity("bank", "FEMININUM", 2))
+        show(
+            engineLoader = { LookupEngine(FakeWordRepository(entries = bankEntries, rows = bankRows + pluralOnlyBaenke)) },
+            savedLoader = { store },
+        )
+        compose.typeQuery("baenke") // Single: bank sense 2, star outlined
+        compose.awaitTag(UiTags.SAVE_TOGGLE)
+
+        store.arm()
+        compose.typeQuery("banken") // lookup settles, its snapshot parks mid-read
+        compose.mainClock.advanceTimeBy(200)
+        runBlocking { withTimeout(5_000) { store.parked.await() } }
+
+        compose.onNodeWithTag(UiTags.SAVE_TOGGLE).performClick() // write commits while parked
+        compose.awaitStarDescription("Remove from saved")
+        assertEquals(WordIdentity("bank", "FEMININUM", 2), fakeSaved.saved.single().identity)
+
+        store.resume.complete(Unit) // the stale snapshot read finally returns
+        compose.pumpFrames(5) // let the (stale) publish take its turn on Main
+
+        // The store holds the save; the answer on screen is bank sense 2 — star stays lit.
+        assertEquals("Remove from saved", compose.starDescription())
+    }
+
+    /**
+     * Models a SQLite statement that read a value and then stalls: with [arm] set, the
+     * next matching read takes the delegate's value, parks until [resume], and returns the
+     * (possibly stale) value taken at entry — a write committing while parked is invisible.
+     */
+    private class ParkedStaleReadStore(
+        private val delegate: SavedWordsRepository,
+        private val staleOn: WordIdentity,
+    ) : SavedWordsRepository by delegate {
+        val parked = CompletableDeferred<Unit>()
+        val resume = CompletableDeferred<Unit>()
+
+        @Volatile
+        private var armed = false
+
+        fun arm() {
+            armed = true
+        }
+
+        override fun isSaved(identity: WordIdentity): Boolean {
+            if (armed && identity == staleOn) {
+                armed = false
+                val stale = delegate.isSaved(identity)
+                runBlocking {
+                    parked.complete(Unit)
+                    resume.await()
+                }
+                return stale
+            }
+            return delegate.isSaved(identity)
+        }
+    }
+
+    private companion object {
+        /** `Bänke` folds to `baenke` and belongs to the SECOND Bank entry only. */
+        val pluralOnlyBaenke = FakeWordRepository.Row("baenke", 2, "Plural", "Nominativ", isLemma = false)
     }
 
     @Test
