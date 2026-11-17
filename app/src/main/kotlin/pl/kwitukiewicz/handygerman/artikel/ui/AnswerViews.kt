@@ -7,9 +7,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
@@ -45,6 +51,10 @@ internal object UiTags {
     const val NO_RESULT = "noResult"
     const val DICTIONARY_ERROR = "dictionaryError"
     const val TOGGLE = "toggle"
+    const val SAVE_TOGGLE = "saveToggle" // star on the detail: membership of (lemma, article, sense)
+    const val SAVED_ROW = "savedRow" // chrome: one saved word in the blank-query list (Task 4)
+    const val SAVED_LIST = "savedList" // chrome: the blank-query saved list container (Task 4)
+    const val SAVED_EMPTY = "savedEmpty" // chrome: hint line of the empty saved list (Task 4)
     const val MENU = "menu" // chrome: overflow button on the search row (2026-11-15)
     const val MENU_ITEM = "menuItem" // chrome: an entry in that overflow menu
     const val ABOUT_BODY = "aboutBody"
@@ -80,9 +90,19 @@ private fun germanNumber(numerus: String): String = when (numerus) {
     else -> numerus.lowercase()
 }
 
-/** One candidate in full: accented articles, 40sp lemma, plural, meaning, case/plural-only notes. */
+/**
+ * One candidate in full: accented articles, 40sp lemma beside its save star, plural,
+ * meaning, case/plural-only notes. The star is membership of this candidate's
+ * *(lemma, article, sense)* — [isSaved] renders it filled, [onToggleSaved] flips it.
+ */
 @Composable
-fun CandidateDetails(candidate: Candidate, dark: Boolean, modifier: Modifier = Modifier) {
+fun CandidateDetails(
+    candidate: Candidate,
+    dark: Boolean,
+    modifier: Modifier = Modifier,
+    isSaved: Boolean = false,
+    onToggleSaved: () -> Unit = {},
+) {
     val entry = candidate.entry
     val washGender = washGenderKey(entry.genders)
     val ink = WashPalette.onWash(washGender, dark)
@@ -95,12 +115,28 @@ fun CandidateDetails(candidate: Candidate, dark: Boolean, modifier: Modifier = M
             fontWeight = FontWeight.Bold,
             color = accent,
         )
-        Text(
-            text = entry.lemma,
-            modifier = Modifier.testTag(UiTags.WORD),
-            fontSize = 40.sp,
-            color = ink,
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = entry.lemma,
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag(UiTags.WORD),
+                fontSize = 40.sp,
+                color = ink,
+            )
+            IconButton(
+                onClick = onToggleSaved,
+                modifier = Modifier.testTag(UiTags.SAVE_TOGGLE),
+            ) {
+                Icon(
+                    imageVector = if (isSaved) Icons.Filled.Star else Icons.Outlined.Star,
+                    contentDescription = stringResource(
+                        if (isSaved) R.string.unsave_word else R.string.save_word,
+                    ),
+                    tint = if (isSaved) accent else WashPalette.onWashMuted(dark),
+                )
+            }
+        }
         entry.pluralForms?.let { plural ->
             Text(
                 text = stringResource(R.string.plural_forms, plural),

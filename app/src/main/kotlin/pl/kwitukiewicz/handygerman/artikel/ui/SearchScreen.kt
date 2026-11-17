@@ -54,12 +54,17 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import pl.kwitukiewicz.handygerman.artikel.R
+import pl.kwitukiewicz.handygerman.artikel.core.Entry
 import pl.kwitukiewicz.handygerman.artikel.core.Homonyms
 import pl.kwitukiewicz.handygerman.artikel.core.LookupEngine
 import pl.kwitukiewicz.handygerman.artikel.core.LookupResult
 import pl.kwitukiewicz.handygerman.artikel.core.NoResult
+import pl.kwitukiewicz.handygerman.artikel.core.SavedWord
+import pl.kwitukiewicz.handygerman.artikel.core.SavedWordsRepository
 import pl.kwitukiewicz.handygerman.artikel.core.Single
 import pl.kwitukiewicz.handygerman.artikel.core.Suggestions
+import pl.kwitukiewicz.handygerman.artikel.core.WordIdentity
+import pl.kwitukiewicz.handygerman.artikel.core.identitiesOf
 import pl.kwitukiewicz.handygerman.artikel.core.washGenderKey
 
 /**
@@ -95,6 +100,7 @@ import pl.kwitukiewicz.handygerman.artikel.core.washGenderKey
 @Composable
 fun SearchScreen(
     engineLoader: suspend () -> LookupEngine,
+    savedLoader: suspend () -> SavedWordsRepository,
     metaProvider: suspend () -> Map<String, String> = { emptyMap() },
 ) {
     // Single-appearance app: the pin, never isSystemInDarkTheme() — the same decision
@@ -121,6 +127,13 @@ fun SearchScreen(
     // The query `result` was computed for — quoted by NoResult instead of the live field,
     // so the line never names a search whose answer is not on screen yet.
     var resultQuery by remember { mutableStateOf("") }
+    // The identities of the published answer's candidates and which of them sit in
+    // the saved store — one holder so stars and answer can only ever publish together
+    // under the generation check (a star state belonging to a superseded answer is
+    // the exact drift this pairing prevents).
+    var published by remember { mutableStateOf(PublishedAnswers()) }
+    // Bumped by every save/unsave; Task 4's list keys its reload on it.
+    val savedListEpoch = remember { mutableIntStateOf(0) }
     val generation = remember { mutableIntStateOf(0) }
     // Lookups launch on the composition scope, NOT on the keyed effect below: replacing
     // the query cancels the effect but may not cancel the dispatched lookup — cooperative
@@ -130,7 +143,11 @@ fun SearchScreen(
     val dictionary by produceState<DictionaryLoad>(initialValue = DictionaryLoad.Loading) {
         value = withContext(Dispatchers.IO) {
             try {
-                DictionaryLoad.Opened(engineLoader())
+                // One try for both stores: a dictionary and a saved store open or die
+                // together — a half-open dictionary screen is not a state to ship.
+                val engine = engineLoader()
+                val savedRepository = savedLoader()
+                DictionaryLoad.Opened(engine, savedRepository)
             } catch (refused: Exception) {
                 // Any dictionary rejection — foreign schema version, missing asset, fold
                 // drift — is a plain failure here; the stack trace belongs in logcat only.
@@ -140,6 +157,7 @@ fun SearchScreen(
         }
     }
     val engine = (dictionary as? DictionaryLoad.Opened)?.engine
+    val savedRepository = (dictionary as? DictionaryLoad.Opened)?.savedRepository
 
     val meta by produceState(initialValue = emptyMap(), metaProvider) {
         // The stamps ride the same dictionary the engine loader just opened (or refused);
@@ -162,11 +180,44 @@ fun SearchScreen(
         lookupScope.launch(Dispatchers.Default) {
             val searched = query
             val outcome = engine.lookup(searched)
+            val publishedAnswers = publishedFor(engine, savedRepository, outcome)
             withContext(Dispatchers.Main) {
                 if (generation.intValue == revision) {
                     result = outcome
                     resultQuery = searched
+                    published = publishedAnswers
                 }
+            }
+        }
+    }
+
+    // Star = membership of the tapped candidate's (lemma, article, sense). The write
+    // runs off-main; the published set flips only when the write completed, so the
+    // filled star never promises a save the store refused.
+    fun toggleSaved(entry: Entry) {
+        val repository = savedRepository ?: return
+        val identity = published.identities[entry.entryId] ?: return
+        lookupScope.launch(Dispatchers.IO) {
+            val wasSaved = repository.isSaved(identity)
+            if (wasSaved) {
+                repository.unsave(identity)
+            } else {
+                repository.save(
+                    SavedWord(
+                        lemma = entry.lemma,
+                        identity = identity,
+                        firstMeaning = entry.meaningLines.firstOrNull(),
+                        savedAtMillis = System.currentTimeMillis(),
+                    ),
+                )
+            }
+            withContext(Dispatchers.Main) {
+                published = if (wasSaved) {
+                    published.copy(saved = published.saved - identity)
+                } else {
+                    published.copy(saved = published.saved + identity)
+                }
+                savedListEpoch.intValue++
             }
         }
     }
@@ -302,8 +353,26 @@ fun SearchScreen(
                 // no answer: either the dictionary is still opening / the query is blank,
                 // or it refused to open — then show the plain error screen, no stack trace
                 null -> if (dictionary is DictionaryLoad.Failed) DictionaryLoadError()
-                is Single -> CandidateDetails(answer.candidate, dark)
-                is Homonyms -> HomonymDetails(answer, homonymSelection, dark) { homonymSelection = it }
+                is Single -> {
+                    val entry = answer.candidate.entry
+                    CandidateDetails(
+                        answer.candidate,
+                        dark,
+                        isSaved = published.saved.contains(published.identities[entry.entryId]),
+                        onToggleSaved = { toggleSaved(entry) },
+                    )
+                }
+                is Homonyms -> {
+                    val selected = answer.candidates.getOrNull(homonymSelection)?.entry
+                    HomonymDetails(
+                        answer,
+                        homonymSelection,
+                        dark,
+                        onSelect = { homonymSelection = it },
+                        isSaved = selected?.entryId?.let { published.saved.contains(published.identities[it]) } == true,
+                        onToggleSaved = { selected?.let { toggleSaved(it) } },
+                    )
+                }
                 is Suggestions -> SuggestionRows(answer.entries, dark) { query = it }
                 NoResult -> NoResultLine(resultQuery)
             }
@@ -331,7 +400,41 @@ private val keyboardShownOnLaunch = AtomicBoolean(false)
 private sealed interface DictionaryLoad {
     data object Loading : DictionaryLoad
     data object Failed : DictionaryLoad
-    data class Opened(val engine: LookupEngine) : DictionaryLoad
+    data class Opened(
+        val engine: LookupEngine,
+        val savedRepository: SavedWordsRepository,
+    ) : DictionaryLoad
+}
+
+/**
+ * The identity view of a published answer: every candidate's [WordIdentity] (keyed by
+ * entry id) and the subset the saved store holds. Lives in one holder so the two can
+ * never disagree about which answer generation they describe.
+ */
+private data class PublishedAnswers(
+    val identities: Map<Long, WordIdentity> = emptyMap(),
+    val saved: Set<WordIdentity> = emptySet(),
+)
+
+/**
+ * Off-main half of a publish: batched identity resolution for the answer's candidates
+ * plus their saved-state, all read from the store right here so what Main publishes
+ * belongs to this generation. No candidates (suggestions/no-result/blank) → no stars.
+ */
+private fun publishedFor(
+    engine: LookupEngine,
+    repository: SavedWordsRepository?,
+    outcome: LookupResult?,
+): PublishedAnswers {
+    val entries = when (val answer = outcome?.answer) {
+        is Single -> listOf(answer.candidate.entry)
+        is Homonyms -> answer.candidates.map { it.entry }
+        else -> emptyList()
+    }
+    if (repository == null || entries.isEmpty()) return PublishedAnswers()
+    val identities = engine.identitiesOf(entries)
+    val saved = identities.values.filter { repository.isSaved(it) }.toSet()
+    return PublishedAnswers(identities, saved)
 }
 
 /** Centered plain text — the launch must survive an unusable dictionary. */

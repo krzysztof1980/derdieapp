@@ -10,6 +10,8 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import pl.kwitukiewicz.handygerman.artikel.core.LookupEngine
+import pl.kwitukiewicz.handygerman.artikel.core.SavedWordsRepository
+import pl.kwitukiewicz.handygerman.artikel.data.SavedWordsDb
 import pl.kwitukiewicz.handygerman.artikel.data.SqliteWordRepository
 import pl.kwitukiewicz.handygerman.artikel.data.WordsDb
 import pl.kwitukiewicz.handygerman.artikel.ui.SearchScreen
@@ -51,6 +53,7 @@ class MainActivity : ComponentActivity() {
             HandyGermanTheme {
                 SearchScreen(
                     engineLoader = { Dictionary.open(appContext).first },
+                    savedLoader = { Dictionary.openSaved(appContext) },
                     metaProvider = { Dictionary.open(appContext).second },
                 )
             }
@@ -69,11 +72,18 @@ private object Dictionary {
 
     private val lock = Any()
     private var opened: Pair<LookupEngine, Map<String, String>>? = null
+    private var saved: SavedWordsRepository? = null
 
     fun open(context: Context): Pair<LookupEngine, Map<String, String>> = synchronized(lock) {
         opened ?: run {
             val repository = SqliteWordRepository(WordsDb(context).open())
             Pair(LookupEngine(repository), repository.meta()).also { opened = it }
         }
+    }
+
+    /** The saved store, opened once per process the same way — it is a second,
+     * independent small database, never part of the copy-on-first-call dictionary. */
+    fun openSaved(context: Context): SavedWordsRepository = synchronized(lock) {
+        saved ?: SavedWordsDb(context).repository().also { saved = it }
     }
 }

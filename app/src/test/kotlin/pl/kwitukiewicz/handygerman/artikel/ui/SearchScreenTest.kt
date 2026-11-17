@@ -16,8 +16,6 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.waitUntilExactlyOneExists
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
-import java.util.concurrent.atomic.AtomicBoolean
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -25,10 +23,9 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import pl.kwitukiewicz.handygerman.artikel.core.FakeSavedWordsRepository
 import pl.kwitukiewicz.handygerman.artikel.core.FakeWordRepository
-import pl.kwitukiewicz.handygerman.artikel.core.FormHit
 import pl.kwitukiewicz.handygerman.artikel.core.LookupEngine
-import pl.kwitukiewicz.handygerman.artikel.core.WordRepository
 
 /**
  * Pins the search screen's contract: the semantics-tag vocabulary Tasks 7-8 test against,
@@ -51,7 +48,7 @@ class SearchScreenTest {
     val compose = createComposeRule()
 
     private fun showSearch() {
-        compose.setContent { SearchScreen(engineLoader = { LookupEngine(FakeWordRepository()) }) }
+        compose.setContent { SearchScreen(engineLoader = { LookupEngine(FakeWordRepository()) }, savedLoader = { FakeSavedWordsRepository() }) }
     }
 
     private fun type(term: String) {
@@ -131,7 +128,7 @@ class SearchScreenTest {
         // A foreign schema version — the planned guard against shipping a db the app's
         // NounsSchema cannot read — must surface as text, not as a launch crash.
         compose.setContent {
-            SearchScreen(engineLoader = { throw IllegalStateException("schema version 99 does not equal 1") })
+            SearchScreen(engineLoader = { throw IllegalStateException("schema version 99 does not equal 1") }, savedLoader = { FakeSavedWordsRepository() })
         }
         compose.awaitTag(UiTags.DICTIONARY_ERROR)
         val error = compose.semanticsTexts(UiTags.DICTIONARY_ERROR).single()
@@ -190,7 +187,7 @@ class SearchScreenTest {
         // generation and only resumes afterwards.
         compose.mainClock.autoAdvance = false
         val repo = GatingRepository()
-        compose.setContent { SearchScreen(engineLoader = { LookupEngine(repo) }) }
+        compose.setContent { SearchScreen(engineLoader = { LookupEngine(repo) }, savedLoader = { FakeSavedWordsRepository() }) }
         compose.mainClock.advanceTimeByFrame()
         val field = compose.onNode(hasSetTextAction())
 
@@ -230,46 +227,4 @@ class SearchScreenTest {
     }
 }
 
-/**
- * Delegating [WordRepository] fake that can park exactly one call off the main thread:
- * [blockNext] arms a one-shot gate; the next repository call signals [inFlight] and then
- * blocks on a [CompletableDeferred] until [releaseNext]. Simulates a slow query without
- * sleeping — the engine API is frozen, so the slowness wraps the fake from the outside.
- */
-private class GatingRepository(
-    private val delegate: WordRepository = FakeWordRepository(),
-) : WordRepository {
-
-    val inFlight = CompletableDeferred<Unit>()
-    private val released = CompletableDeferred<Unit>()
-    private val armed = AtomicBoolean(false)
-
-    fun blockNext() {
-        armed.set(true)
-    }
-
-    fun releaseNext() {
-        released.complete(Unit)
-    }
-
-    private fun tripGate() {
-        if (armed.compareAndSet(true, false)) {
-            runBlocking {
-                inFlight.complete(Unit)
-                released.await()
-            }
-        }
-    }
-
-    override fun exactForm(folded: String): List<FormHit> {
-        tripGate()
-        return delegate.exactForm(folded)
-    }
-
-    override fun prefixForms(prefix: String, limit: Int): List<FormHit> {
-        tripGate()
-        return delegate.prefixForms(prefix, limit)
-    }
-
-    override fun meta(): Map<String, String> = delegate.meta()
-}
+// GatingRepository moved to UiTestSupport.kt (shared with SearchScreenSavedTest).

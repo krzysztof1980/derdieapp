@@ -8,7 +8,13 @@ import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.ComposeTestRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.performTextReplacement
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertTrue
+import pl.kwitukiewicz.handygerman.artikel.core.FakeWordRepository
+import pl.kwitukiewicz.handygerman.artikel.core.FormHit
+import pl.kwitukiewicz.handygerman.artikel.core.WordRepository
 
 /**
  * Shared screen-test plumbing: [SearchScreenTest] and [AmbiguityTest] drive the same
@@ -62,4 +68,48 @@ private inline fun ComposeTestRule.awaitWhile(absent: () -> Boolean) {
         mainClock.advanceTimeBy(CLOCK_SLICE_MS)
         waitForIdle()
     }
+}
+
+/**
+ * Delegating [WordRepository] fake that can park exactly one call off the main thread:
+ * [blockNext] arms a one-shot gate; the next repository call signals [inFlight] and then
+ * blocks on a [CompletableDeferred] until [releaseNext]. Simulates a slow query without
+ * sleeping — the engine API is frozen, so the slowness wraps the fake from the outside.
+ */
+internal class GatingRepository(
+    private val delegate: WordRepository = FakeWordRepository(),
+) : WordRepository {
+
+    val inFlight = CompletableDeferred<Unit>()
+    private val released = CompletableDeferred<Unit>()
+    private val armed = AtomicBoolean(false)
+
+    fun blockNext() {
+        armed.set(true)
+    }
+
+    fun releaseNext() {
+        released.complete(Unit)
+    }
+
+    private fun tripGate() {
+        if (armed.compareAndSet(true, false)) {
+            runBlocking {
+                inFlight.complete(Unit)
+                released.await()
+            }
+        }
+    }
+
+    override fun exactForm(folded: String): List<FormHit> {
+        tripGate()
+        return delegate.exactForm(folded)
+    }
+
+    override fun prefixForms(prefix: String, limit: Int): List<FormHit> {
+        tripGate()
+        return delegate.prefixForms(prefix, limit)
+    }
+
+    override fun meta(): Map<String, String> = delegate.meta()
 }
