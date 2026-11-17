@@ -39,6 +39,9 @@ class SavedListTest {
 
     private val fakeSaved = FakeSavedWordsRepository()
 
+    /** Rounds the paging scroll retries before the test declares the page lost. */
+    private val scrollAttempts = 20
+
     private fun show(
         store: FakeSavedWordsRepository = fakeSaved,
         engineLoader: suspend () -> LookupEngine = { LookupEngine(FakeWordRepository()) },
@@ -110,12 +113,17 @@ class SavedListTest {
         // append the rest (snapshot rows: none of these lemmas resolve live).
         compose.onNodeWithTag(UiTags.SAVED_LIST).performScrollToIndex(49)
         compose.pumpFrames()
-        compose.onNodeWithTag(UiTags.SAVED_LIST).performScrollToIndex(59)
-        compose.pumpFrames()
-        assertTrue(
-            "oldest page reached",
-            compose.rowTexts().any { it.contains("Wort1 ") || it.contains("Wort1\n") || it.endsWith("Wort1") },
-        )
+        // scrollToIndex clamps while page 2 is still on its way in, so re-assert the
+        // scroll each round until the oldest row composes — no wall-clock bet on the
+        // page's IO landing between the two calls.
+        var reached = false
+        var attempts = 0
+        while (!reached && ++attempts <= scrollAttempts) {
+            compose.onNodeWithTag(UiTags.SAVED_LIST).performScrollToIndex(59)
+            compose.pumpFrames(5)
+            reached = compose.rowTexts().any { it.contains("Wort1 ") || it.endsWith("Wort1") }
+        }
+        assertTrue("oldest page reached", reached)
         // No seam assert: LazyColumn composes only its viewport, so a "Wort10 and
         // Wort11 adjacent" check is not decidable through scroll semantics —
         // gapless, duplicate-free page walks are pinned at the store (Task 2).

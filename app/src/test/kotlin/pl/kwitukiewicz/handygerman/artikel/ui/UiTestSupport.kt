@@ -28,6 +28,12 @@ import pl.kwitukiewicz.handygerman.artikel.core.WordRepository
 internal const val CLOCK_SLICE_MS = 100L
 internal const val CLOCK_SLICES = 50
 
+// The slice pumps advance only Compose's frozen clock; the IO/Default hops these tests
+// wait on (produceState, SQLite reads, hydrators) run on real threads that need real wall
+// time to be scheduled. Each slice therefore also sleeps — without it the whole budget can
+// burn in tens of milliseconds on a busy machine and the next assertion reads stale state.
+private const val WALL_SLICE_MS = 5L
+
 /** Replaces the query field's content — one keystroke burst, no per-char events. */
 internal fun ComposeTestRule.typeQuery(term: String) {
     onNode(hasSetTextAction()).performTextReplacement(term)
@@ -50,6 +56,7 @@ internal fun ComposeTestRule.awaitStarDescription(expected: String) {
     while (runCatching { starDescription() }.getOrNull() != expected && ++slices <= CLOCK_SLICES) {
         mainClock.advanceTimeBy(CLOCK_SLICE_MS)
         waitForIdle()
+        Thread.sleep(WALL_SLICE_MS)
     }
     assertEquals(expected, starDescription())
 }
@@ -75,6 +82,7 @@ internal fun ComposeTestRule.pumpFrames(count: Int = CLOCK_SLICES) {
     repeat(count) {
         mainClock.advanceTimeBy(CLOCK_SLICE_MS)
         waitForIdle()
+        Thread.sleep(WALL_SLICE_MS)
     }
 }
 
@@ -83,6 +91,10 @@ private inline fun ComposeTestRule.awaitWhile(absent: () -> Boolean) {
     while (absent() && ++slices <= CLOCK_SLICES) {
         mainClock.advanceTimeBy(CLOCK_SLICE_MS)
         waitForIdle()
+        Thread.sleep(WALL_SLICE_MS)
+    }
+    if (absent()) {
+        throw AssertionError("state still absent after $CLOCK_SLICES slices — real-thread work never landed")
     }
 }
 
