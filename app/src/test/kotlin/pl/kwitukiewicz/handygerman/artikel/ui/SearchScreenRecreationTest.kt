@@ -14,15 +14,21 @@ import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ActivityScenario
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import pl.kwitukiewicz.handygerman.artikel.core.Entry
 import pl.kwitukiewicz.handygerman.artikel.core.FakeSavedWordsRepository
 import pl.kwitukiewicz.handygerman.artikel.core.FakeWordRepository
 import pl.kwitukiewicz.handygerman.artikel.core.Gender
+import pl.kwitukiewicz.handygerman.artikel.core.Kind
 import pl.kwitukiewicz.handygerman.artikel.core.LookupEngine
+import pl.kwitukiewicz.handygerman.artikel.core.SavedWord
+import pl.kwitukiewicz.handygerman.artikel.core.SavedWordsRepository
+import pl.kwitukiewicz.handygerman.artikel.core.WordIdentity
+import pl.kwitukiewicz.handygerman.artikel.core.WordRepository
+import kotlinx.coroutines.runBlocking
 
 /**
  * Pins the `rememberSaveable` query: type `virus`, recreate the Activity (the rotation and
@@ -43,14 +49,17 @@ class SearchScreenRecreationTest {
 
     private lateinit var scenario: ActivityScenario<SearchScreenRecreationTestHost>
 
-    @Before
-    fun launchHost() {
+    /** The host is launched per test (not @Before): tests configure the host's
+     * provider companion first, and `launch` is what reads it. */
+    private fun launchHost() {
         scenario = ActivityScenario.launch(SearchScreenRecreationTestHost::class.java)
     }
 
     @After
     fun closeHost() {
         scenario.close()
+        SearchScreenRecreationTestHost.SEARCH_REPOSITORY_PROVIDER = { FakeWordRepository() }
+        SearchScreenRecreationTestHost.SEARCH_SAVED_PROVIDER = { FakeSavedWordsRepository() }
     }
 
     private fun fieldText(): String =
@@ -58,6 +67,7 @@ class SearchScreenRecreationTest {
 
     @Test
     fun typedQuerySurvivesActivityRecreation() {
+        launchHost()
         compose.typeQuery("virus")
         compose.awaitSemanticsText(UiTags.WORD, "Virus")
         assertEquals("virus", fieldText())
@@ -78,6 +88,7 @@ class SearchScreenRecreationTest {
      */
     @Test
     fun homonymChoiceSurvivesActivityRecreation() {
+        launchHost()
         compose.typeQuery("boot")
         compose.awaitTag(UiTags.TOGGLE)
         assertEquals(listOf("das", "der"), compose.semanticsTexts(UiTags.TOGGLE))
@@ -92,6 +103,46 @@ class SearchScreenRecreationTest {
             .assertTextEquals(washHex(WashPalette.wash(Gender.MASKULINUM, dark = false)))
         compose.assertTextContainsViaSemantics(UiTags.MEANING_LINE, "Familienname")
     }
+
+    /**
+     * Recreation between the row tap and the answer's first publish: the pending
+     * (article, sense) target must come back through `rememberSaveable` and still
+     * select the saved variant — without it, the restored query would land on the
+     * first `die Bank` while the save points at the second.
+     */
+    @Test
+    fun pendingOpenSurvivesActivityRecreation() {
+        val store = FakeSavedWordsRepository()
+        store.save(SavedWord("Bank", WordIdentity("bank", "FEMININUM", 2), "Geldinstitut", 100L))
+        val gating = GatingRepository(
+            FakeWordRepository(
+                entries = listOf(
+                    Entry(1, "Bank", Kind.WORD, listOf(Gender.FEMININUM), "Bänke", listOf("Sitzgelegenheit")),
+                    Entry(2, "Bank", Kind.WORD, listOf(Gender.FEMININUM), "Banken", listOf("Geldinstitut")),
+                ),
+                rows = listOf(
+                    FakeWordRepository.Row("bank", 1, "Singular", "Nominativ", isLemma = true),
+                    FakeWordRepository.Row("bank", 2, "Singular", "Nominativ", isLemma = true),
+                ),
+            ),
+        )
+        SearchScreenRecreationTestHost.SEARCH_REPOSITORY_PROVIDER = { gating }
+        SearchScreenRecreationTestHost.SEARCH_SAVED_PROVIDER = { store }
+
+        launchHost()
+        compose.mainClock.autoAdvance = false
+        compose.awaitTag(UiTags.SAVED_ROW)
+        compose.onNodeWithTag(UiTags.SAVED_ROW).performClick() // tap: query set, target pending
+        gating.blockNext() // the query's lookup is next off the line…
+        compose.mainClock.advanceTimeBy(200) // …debounce fires and it parks at the gate
+        runBlocking { gating.inFlight.await() }
+
+        scenario.recreate() // …recreation lands while the answer never published
+
+        gating.releaseNext() // after recreation the query's new lookup is ungated
+        compose.awaitSemanticsText(UiTags.WORD, "Bank")
+        compose.assertTextContainsViaSemantics(UiTags.MEANING_LINE, "Geldinstitut")
+    }
 }
 
 /** Composition host for [SearchScreenRecreationTest]: the real screen, the cheap fake. */
@@ -100,7 +151,17 @@ class SearchScreenRecreationTestHost : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            SearchScreen(engineLoader = { LookupEngine(FakeWordRepository()) }, savedLoader = { FakeSavedWordsRepository() })
+            SearchScreen(
+                engineLoader = { LookupEngine(SEARCH_REPOSITORY_PROVIDER()) },
+                savedLoader = { SEARCH_SAVED_PROVIDER() },
+            )
         }
+    }
+
+    companion object {
+        // Survive scenario.recreate() like real singletons would: tests point these at
+        // their own corpus/store before launch.
+        var SEARCH_REPOSITORY_PROVIDER: () -> WordRepository = { FakeWordRepository() }
+        var SEARCH_SAVED_PROVIDER: () -> SavedWordsRepository = { FakeSavedWordsRepository() }
     }
 }

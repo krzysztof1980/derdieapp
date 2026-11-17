@@ -64,6 +64,7 @@ import pl.kwitukiewicz.handygerman.artikel.core.SavedWordsRepository
 import pl.kwitukiewicz.handygerman.artikel.core.Single
 import pl.kwitukiewicz.handygerman.artikel.core.Suggestions
 import pl.kwitukiewicz.handygerman.artikel.core.WordIdentity
+import pl.kwitukiewicz.handygerman.artikel.core.foldForm
 import pl.kwitukiewicz.handygerman.artikel.core.resolveSaved
 import pl.kwitukiewicz.handygerman.artikel.core.identitiesOf
 import pl.kwitukiewicz.handygerman.artikel.core.washGenderKey
@@ -160,6 +161,19 @@ fun SearchScreen(
     val engine = (dictionary as? DictionaryLoad.Opened)?.engine
     val savedRepository = (dictionary as? DictionaryLoad.Opened)?.savedRepository
 
+    // Homonym selection lives here, not inside the subview: the wash must follow the
+    // candidate on screen. Keyed on the query, not the answer instance — recreation
+    // recomputes a fresh answer object, and the choice must ride through rotation:
+    // the same query yields the same deterministically ordered candidates, so the
+    // index stays valid (the getOrNull guard stays as the backstop). A new query
+    // restarts the selection at zero. Declared before the lookup effect because the
+    // publish step seeds it from a pending saved-row open.
+    var homonymSelection by rememberSaveable(query) { mutableIntStateOf(0) }
+    // A saved-row tap awaiting the answer's first publish: which variant to select
+    // once the query resolves. Stored in its seven-field saveable form (decode below);
+    // consumed exactly once, by the publish of its own query; never resurrected.
+    var pendingOpen by rememberSaveable { mutableStateOf<List<String>?>(null) }
+
     val meta by produceState(initialValue = emptyMap(), metaProvider) {
         // The stamps ride the same dictionary the engine loader just opened (or refused);
         // without it the About dialog simply shows nothing.
@@ -187,6 +201,24 @@ fun SearchScreen(
                     result = outcome
                     resultQuery = searched
                     published = publishedAnswers
+                    pendingOpen?.let { targetFields ->
+                        pendingOpen = null
+                        val target = decodeSavedWord(targetFields)
+                        // Only the query the tap came from may consume the target —
+                        // a retype in between must not select across words.
+                        if (target.identity.lemmaFolded == foldForm(searched) &&
+                            outcome?.answer is Homonyms
+                        ) {
+                            val candidates = (outcome.answer as Homonyms).candidates
+                            val index = candidates.indexOfFirst { candidate ->
+                                publishedAnswers.identities[candidate.entry.entryId]?.let {
+                                    it.articleKey == target.identity.articleKey &&
+                                        it.senseNo == target.identity.senseNo
+                                } == true
+                            }
+                            if (index >= 0) homonymSelection = index
+                        }
+                    }
                 }
             }
         }
@@ -236,13 +268,6 @@ fun SearchScreen(
     }
 
     val answer = result?.answer
-    // Homonym selection lives here, not inside the subview: the wash must follow the
-    // candidate on screen. Keyed on the query, not the answer instance — recreation
-    // recomputes a fresh answer object, and the choice must ride through rotation:
-    // the same query yields the same deterministically ordered candidates, so the
-    // index stays valid (the getOrNull guard above stays as the backstop). A new
-    // query restarts the selection at zero, exactly as the fresh-answer object did.
-    var homonymSelection by rememberSaveable(query) { mutableIntStateOf(0) }
 
     val visibleWash = when (answer) {
         is Single -> answer.candidate.entry.genders
@@ -376,7 +401,10 @@ fun SearchScreen(
                             epoch = savedListEpoch.intValue,
                             dark = dark,
                             modifier = Modifier.weight(1f),
-                            onOpen = { saved -> query = saved.lemma },
+                            onOpen = { saved ->
+                                pendingOpen = encodeSavedWord(saved)
+                                query = saved.lemma
+                            },
                             onUnsave = { saved -> unsaveSavedWord(load.savedRepository, saved) },
                         )
                     }
@@ -482,3 +510,29 @@ private fun DictionaryLoadError() {
         )
     }
 }
+
+
+/**
+ * The pending saved-row open round-trips through process death in its saveable
+ * field list (Compose's `rememberSaveable` hosts primitives, not custom classes).
+ * Only the identity triple steers selection; the rest rides along unchanged.
+ */
+private fun encodeSavedWord(word: SavedWord): List<String> =
+    listOf(
+        word.lemma,
+        word.identity.lemmaFolded,
+        word.identity.articleKey,
+        word.identity.senseNo.toString(),
+        word.firstMeaning ?: "",
+        word.savedAtMillis.toString(),
+        word.rowid.toString(),
+    )
+
+private fun decodeSavedWord(fields: List<String>): SavedWord =
+    SavedWord(
+        lemma = fields[0],
+        identity = WordIdentity(fields[1], fields[2], fields[3].toInt()),
+        firstMeaning = fields[4].ifEmpty { null },
+        savedAtMillis = fields[5].toLong(),
+        rowid = fields[6].toLong(),
+    )

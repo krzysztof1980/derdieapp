@@ -15,7 +15,10 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import pl.kwitukiewicz.handygerman.artikel.core.Entry
 import pl.kwitukiewicz.handygerman.artikel.core.FakeSavedWordsRepository
+import pl.kwitukiewicz.handygerman.artikel.core.Gender
+import pl.kwitukiewicz.handygerman.artikel.core.Kind
 import pl.kwitukiewicz.handygerman.artikel.core.FakeWordRepository
 import pl.kwitukiewicz.handygerman.artikel.core.LookupEngine
 import pl.kwitukiewicz.handygerman.artikel.core.SavedWord
@@ -36,11 +39,11 @@ class SavedListTest {
 
     private val fakeSaved = FakeSavedWordsRepository()
 
-    private fun show(store: FakeSavedWordsRepository = fakeSaved) = compose.setContent {
-        SearchScreen(
-            engineLoader = { LookupEngine(FakeWordRepository()) },
-            savedLoader = { store },
-        )
+    private fun show(
+        store: FakeSavedWordsRepository = fakeSaved,
+        engineLoader: suspend () -> LookupEngine = { LookupEngine(FakeWordRepository()) },
+    ) = compose.setContent {
+        SearchScreen(engineLoader = engineLoader, savedLoader = { store })
     }
 
     /** Row texts of the saved list, in display order. */
@@ -159,4 +162,55 @@ class SavedListTest {
         assertTrue("stored lemma kept", text.contains("Wegweiser"))
         assertTrue("stored meaning kept", text.contains("historischer Hinweis"))
     }
+
+    @Test
+    fun tappingRowOpensSavedHomographVariant() {
+        // das Teil comes first in page order — without the row's target, the tap
+        // would land on selection 0 (das) no matter which variant was saved.
+        fakeSaved.save(savedWord("Teil", "teil", "MASKULINUM", 1, "Element eines Ganzen", 100L))
+        show(engineLoader = { LookupEngine(teilRepository()) })
+
+        compose.awaitTag(UiTags.SAVED_ROW)
+        compose.onNodeWithTag(UiTags.SAVED_ROW).performClick()
+
+        compose.awaitSemanticsText(UiTags.WORD, "Teil")
+        assertEquals(2, compose.onAllNodesWithTag(UiTags.TOGGLE).fetchSemanticsNodes().size)
+        assertEquals(listOf("der"), compose.semanticsTexts(UiTags.ARTICLE))
+        compose.assertTextContainsViaSemantics(UiTags.MEANING_LINE, "Element eines Ganzen")
+    }
+
+    @Test
+    fun tappingRowOpensSavedSenseWithinSameArticle() {
+        fakeSaved.save(savedWord("Bank", "bank", "FEMININUM", 2, "Geldinstitut", 100L))
+        show(engineLoader = { LookupEngine(bankRepository()) })
+
+        compose.awaitTag(UiTags.SAVED_ROW)
+        compose.onNodeWithTag(UiTags.SAVED_ROW).performClick()
+
+        compose.awaitSemanticsText(UiTags.WORD, "Bank")
+        assertEquals(listOf("die"), compose.semanticsTexts(UiTags.ARTICLE))
+        compose.assertTextContainsViaSemantics(UiTags.MEANING_LINE, "Geldinstitut")
+    }
+
+    private fun teilRepository() = FakeWordRepository(
+        entries = listOf(
+            Entry(1, "Teil", Kind.WORD, listOf(Gender.NEUTRUM), "Teil", listOf("Stück; Teilmenge")),
+            Entry(2, "Teil", Kind.WORD, listOf(Gender.MASKULINUM), "Teile", listOf("Element eines Ganzen")),
+        ),
+        rows = listOf(
+            FakeWordRepository.Row("teil", 1, "Singular", "Nominativ", isLemma = true),
+            FakeWordRepository.Row("teil", 2, "Singular", "Nominativ", isLemma = true),
+        ),
+    )
+
+    private fun bankRepository() = FakeWordRepository(
+        entries = listOf(
+            Entry(1, "Bank", Kind.WORD, listOf(Gender.FEMININUM), "Bänke", listOf("Sitzgelegenheit")),
+            Entry(2, "Bank", Kind.WORD, listOf(Gender.FEMININUM), "Banken", listOf("Geldinstitut")),
+        ),
+        rows = listOf(
+            FakeWordRepository.Row("bank", 1, "Singular", "Nominativ", isLemma = true),
+            FakeWordRepository.Row("bank", 2, "Singular", "Nominativ", isLemma = true),
+        ),
+    )
 }
