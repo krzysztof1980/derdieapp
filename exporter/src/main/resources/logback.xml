@@ -6,7 +6,7 @@
             <pattern>%d{HH:mm:ss.SSS} %-5level %logger{24} - %msg%n</pattern>
         </encoder>
     </appender>
-    <logger name="pl.kwitukiewicz.derdiedas" level="${DERDIEDAS_LOG:-INFO}"/>
+    <logger name="pl.kwitukiewicz.handygerman" level="${HANDYGERMAN_LOG:-INFO}"/>
     <root level="WARN">
         <appender-ref ref="STDOUT"/>
     </root>

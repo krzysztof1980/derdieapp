@@ -11,7 +11,7 @@
 
     <application>
         <activity
-            android:name="pl.kwitukiewicz.derdiedas.ui.SearchScreenRecreationTestHost"
+            android:name="pl.kwitukiewicz.handygerman.artikel.ui.SearchScreenRecreationTestHost"
             android:exported="false"
             tools:ignore="MissingClass" />
     </application>

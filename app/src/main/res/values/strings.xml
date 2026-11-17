@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Launcher label; ManifestContractTest pins the value 'DerDieDas'. The git repo
-         stays `derdieapp` — repo/app rename decision remains open until Play registration. -->
-    <string name="app_name">DerDieDas</string>
+    <!-- app_name is the launcher label (short form); ManifestContractTest pins the value
+         'HG: Artikel'. app_long_name is the full brand, shown in-app and used as the Play
+         Store listing title (set in Play Console, not in the APK). -->
+    <string name="app_name">HG: Artikel</string>
+    <string name="app_long_name">HandyGerman: Artikel</string>
     <string name="query_hint">German noun or form</string>
     <string name="clear_query">Clear search</string>
     <string name="menu_desc">More options</string>
@@ -11,7 +13,7 @@
     <string name="plural_only">Plural only</string>
     <string name="no_result">No entry for \"%1$s\"</string>
     <string name="dictionary_load_failed">The dictionary could not be loaded. Close the app and try again; if this persists, reinstall to re-seed it.</string>
-    <string name="about_title">About DerDieDas</string>
+    <string name="about_title">About %1$s</string>
     <string name="about_attribution">German word data comes from the German Wiktionary, used under the CC BY-SA 4.0 and GFDL licenses.</string>
     <string name="about_source">de.wiktionary.org, dump %1$s</string>
     <string name="about_parser">Entries parsed and exported by wiktiopeggynary.</string>

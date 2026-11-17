@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "pl.kwitukiewicz.derdiedas"
+    namespace = "pl.kwitukiewicz.handygerman.artikel"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "pl.kwitukiewicz.derdiedas"
+        applicationId = "pl.kwitukiewicz.handygerman.artikel"
         minSdk = 26
         targetSdk = 35
         versionCode = 1
@@ -103,5 +103,5 @@ abstract class ManifestContractInputs @javax.inject.Inject constructor() : org.g
     abstract val mergedManifest: org.gradle.api.file.RegularFileProperty
 
     override fun asArguments(): List<String> =
-        listOf("-Dderdieapp.merged.manifest=${mergedManifest.get().asFile.absolutePath}")
+        listOf("-Dhandygerman.merged.manifest=${mergedManifest.get().asFile.absolutePath}")
 }

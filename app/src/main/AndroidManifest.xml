@@ -6,7 +6,7 @@
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name">
         <activity
-            android:name="pl.kwitukiewicz.derdiedas.MainActivity"
+            android:name="pl.kwitukiewicz.handygerman.artikel.MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

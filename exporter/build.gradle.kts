@@ -30,7 +30,7 @@ dependencies {
 }
 
 application {
-    mainClass = "pl.kwitukiewicz.derdiedas.exporter.ExportMainKt"
+    mainClass = "pl.kwitukiewicz.handygerman.exporter.ExportMainKt"
 }
 
 tasks.named<JavaExec>("run") {
@@ -39,7 +39,7 @@ tasks.named<JavaExec>("run") {
     // scroll of a live cluster benefits from headroom.
     jvmArgs("-Xmx3g")
     // ./gradlew :exporter:run -PlogLevel=DEBUG traces per-doc skip reasons.
-    providers.gradleProperty("logLevel").orNull?.let { systemProperty("DERDIEDAS_LOG", it) }
+    providers.gradleProperty("logLevel").orNull?.let { systemProperty("HANDYGERMAN_LOG", it) }
 }
 
 tasks.test {

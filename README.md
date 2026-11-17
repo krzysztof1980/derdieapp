@@ -1,4 +1,4 @@
-# DerDieDas
+# HandyGerman: Artikel
 
 [![CI](https://github.com/krzysztof1980/derdieapp/actions/workflows/ci.yml/badge.svg)](https://github.com/krzysztof1980/derdieapp/actions/workflows/ci.yml)
 
@@ -147,8 +147,8 @@ TODO — Play Store screenshots (light + dark, 1080×1920 and 1920×1080) before
 - [ ] Publish a privacy policy page ("no data collected") and link it in the listing.
 - [ ] Dump-attribute the launcher icon (real font outlines instead of hand-built paths) —
       and attribute the font if a different one is chosen.
-- [ ] Decide the repo/app rename (display name is `DerDieDas`; the git repo is still
-      `derdieapp`).
+- [ ] Optionally rename the GitHub repo to `handygerman` (app display name, package and
+      Gradle build are already renamed; on-disk dir is still `derdieapp`).
 - [ ] Fill `signingConfig` on the release build type (currently unsigned on purpose).
 
 ## CI

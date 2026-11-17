@@ -13,7 +13,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "derdieapp"
+rootProject.name = "handygerman"
 
 include(":core")
 include(":exporter")
