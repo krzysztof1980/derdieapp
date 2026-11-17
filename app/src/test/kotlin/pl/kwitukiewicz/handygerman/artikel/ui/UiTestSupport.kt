@@ -11,6 +11,7 @@ import androidx.compose.ui.test.performTextReplacement
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import pl.kwitukiewicz.handygerman.artikel.core.FakeWordRepository
 import pl.kwitukiewicz.handygerman.artikel.core.FormHit
@@ -37,6 +38,21 @@ internal fun ComposeTestRule.semanticsTexts(tag: String): List<String> =
     onAllNodesWithTag(tag).fetchSemanticsNodes().map { node ->
         node.config[SemanticsProperties.Text].joinToString(" ") { it.text }
     }
+
+/** The single star node's ([UiTags.SAVE_TOGGLE]) content description — filled vs. outlined state. */
+internal fun ComposeTestRule.starDescription(): String =
+    onAllNodesWithTag(UiTags.SAVE_TOGGLE).fetchSemanticsNodes().single()
+        .config[SemanticsProperties.ContentDescription].single()
+
+/** Advances the clock until the star reports [expected] — the flip is the save write's receipt. */
+internal fun ComposeTestRule.awaitStarDescription(expected: String) {
+    var slices = 0
+    while (runCatching { starDescription() }.getOrNull() != expected && ++slices <= CLOCK_SLICES) {
+        mainClock.advanceTimeBy(CLOCK_SLICE_MS)
+        waitForIdle()
+    }
+    assertEquals(expected, starDescription())
+}
 
 /** Substring check on the single node's semantics text tagged [tag]. */
 internal fun ComposeTestRule.assertTextContainsViaSemantics(tag: String, needle: String) {

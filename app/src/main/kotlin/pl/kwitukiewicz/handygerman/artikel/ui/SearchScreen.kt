@@ -64,6 +64,7 @@ import pl.kwitukiewicz.handygerman.artikel.core.SavedWordsRepository
 import pl.kwitukiewicz.handygerman.artikel.core.Single
 import pl.kwitukiewicz.handygerman.artikel.core.Suggestions
 import pl.kwitukiewicz.handygerman.artikel.core.WordIdentity
+import pl.kwitukiewicz.handygerman.artikel.core.resolveSaved
 import pl.kwitukiewicz.handygerman.artikel.core.identitiesOf
 import pl.kwitukiewicz.handygerman.artikel.core.washGenderKey
 
@@ -222,6 +223,18 @@ fun SearchScreen(
         }
     }
 
+    // Row star = un-save of exactly that variant, the detail star's inverse; the
+    // epoch bump remounts the mounted list so the row vanishes without a reload.
+    fun unsaveSavedWord(repository: SavedWordsRepository, saved: SavedWord) {
+        lookupScope.launch(Dispatchers.IO) {
+            repository.unsave(saved.identity)
+            withContext(Dispatchers.Main) {
+                published = published.copy(saved = published.saved - saved.identity)
+                savedListEpoch.intValue++
+            }
+        }
+    }
+
     val answer = result?.answer
     // Homonym selection lives here, not inside the subview: the wash must follow the
     // candidate on screen. Keyed on the query, not the answer instance — recreation
@@ -350,9 +363,25 @@ fun SearchScreen(
             }
             if (showAbout) AboutDialog(meta = meta, onDismiss = { showAbout = false })
             when (answer) {
-                // no answer: either the dictionary is still opening / the query is blank,
-                // or it refused to open — then show the plain error screen, no stack trace
-                null -> if (dictionary is DictionaryLoad.Failed) DictionaryLoadError()
+                // no answer: still opening / blank query, or refused for good —
+                // blank query on an open dictionary is the saved list's home state.
+                null -> when (val load = dictionary) {
+                    is DictionaryLoad.Failed -> DictionaryLoadError()
+                    is DictionaryLoad.Opened -> if (query.isEmpty()) {
+                        SavedWordsList(
+                            repository = load.savedRepository,
+                            hydrator = { saved ->
+                                withContext(Dispatchers.IO) { resolveSaved(load.engine.wordRepository, saved) }
+                            },
+                            epoch = savedListEpoch.intValue,
+                            dark = dark,
+                            modifier = Modifier.weight(1f),
+                            onOpen = { saved -> query = saved.lemma },
+                            onUnsave = { saved -> unsaveSavedWord(load.savedRepository, saved) },
+                        )
+                    }
+                    DictionaryLoad.Loading -> Unit
+                }
                 is Single -> {
                     val entry = answer.candidate.entry
                     CandidateDetails(

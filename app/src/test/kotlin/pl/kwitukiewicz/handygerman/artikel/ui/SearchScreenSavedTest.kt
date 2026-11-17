@@ -1,9 +1,7 @@
 package pl.kwitukiewicz.handygerman.artikel.ui
 
-import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasSetTextAction
-import androidx.compose.ui.test.junit4.ComposeTestRule
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
@@ -68,21 +66,6 @@ class SearchScreenSavedTest {
         savedLoader: suspend () -> SavedWordsRepository = { fakeSaved },
     ) = compose.setContent {
         SearchScreen(engineLoader = engineLoader, savedLoader = savedLoader)
-    }
-
-    /** The single star node's content description — filled vs. outlined state. */
-    private fun ComposeTestRule.starDescription(): String =
-        onAllNodesWithTag(UiTags.SAVE_TOGGLE).fetchSemanticsNodes().single()
-            .config[SemanticsProperties.ContentDescription].single()
-
-    /** Advances the clock until the star reports [expected] — the flip proves the write landed. */
-    private fun ComposeTestRule.awaitStarDescription(expected: String) {
-        var slices = 0
-        while (runCatching { starDescription() }.getOrNull() != expected && ++slices <= CLOCK_SLICES) {
-            mainClock.advanceTimeBy(CLOCK_SLICE_MS)
-            waitForIdle()
-        }
-        assertEquals(expected, starDescription())
     }
 
     @Test
