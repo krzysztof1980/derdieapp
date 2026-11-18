@@ -63,7 +63,7 @@ class SavedListTest {
         fakeSaved.save(savedWord("Virus", "virus", "MASKULINUM,NEUTRUM", 1, "Erreger", 300L))
         show()
 
-        compose.awaitTag(UiTags.SAVED_ROW)
+        compose.awaitRowCount(UiTags.SAVED_ROW, 3)
         val texts = compose.rowTexts()
         assertEquals(3, texts.size)
         assertTrue(texts[0].contains("Virus"))
@@ -74,7 +74,7 @@ class SavedListTest {
         compose.onNodeWithTag(UiTags.SAVED_LIST).assertDoesNotExist()
 
         compose.onNodeWithTag(UiTags.CLEAR_BUTTON).performClick() // X brings it back
-        compose.awaitTag(UiTags.SAVED_ROW)
+        compose.awaitRowCount(UiTags.SAVED_ROW, 3)
         assertEquals(3, compose.rowTexts().size)
     }
 
@@ -91,10 +91,10 @@ class SavedListTest {
                 savedLoader = { fakeSaved },
             )
         }
-        compose.awaitTag(UiTags.SAVED_ROW)
-        val text = compose.rowTexts().single()
-        assertTrue("stored lemma kept", text.contains("Wegweiser"))
-        assertTrue("stored meaning kept", text.contains("historischer Hinweis"))
+        // Text-wait, not node-wait (see rehydrates test): the stored meaning must
+        // actually render before the lemma assertion reads it.
+        compose.awaitSemanticsText(UiTags.SAVED_ROW, "historischer Hinweis")
+        assertTrue("stored lemma kept", compose.rowTexts().single().contains("Wegweiser"))
         gate.complete(Unit)
     }
 
@@ -108,8 +108,10 @@ class SavedListTest {
                 savedLoader = { fakeSaved },
             )
         }
-        compose.awaitTag(UiTags.SAVED_ROW)
-        assertTrue(compose.rowTexts().single().contains("SNAPSHOT-MEANING"))
+        // Wait for the snapshot TEXT, not just the row node: a tagged row can exist
+        // one merged-semantics frame before its text, and asserting against that
+        // intermediate frame is exactly the cold-machine flake CI caught once.
+        compose.awaitSemanticsText(UiTags.SAVED_ROW, "SNAPSHOT-MEANING")
 
         gate.complete(Unit)
         // The dictionary becoming ready re-keys the list: the row now shows the live
@@ -186,8 +188,12 @@ class SavedListTest {
         assertTrue(fakeSaved.saved.isEmpty())
     }
 
+    // Name says what the mechanism delivers: the row is gone when the list comes
+    // back. This is NOT the epoch path (the detail and the list are never mounted
+    // at once) — clearing the query re-mounts and re-reads the store; the in-place
+    // epoch remount is pinned by rowStarUnsavesAndRowVanishes.
     @Test
-    fun unstarFromDetailRemovesRowFromMountedList() {
+    fun unstarInDetailGoneFromListOnReturn() {
         fakeSaved.save(savedWord("Zeit", "zeit", "FEMININUM", 1, "Verlauf", 100L))
         show()
         compose.awaitTag(UiTags.SAVED_ROW)

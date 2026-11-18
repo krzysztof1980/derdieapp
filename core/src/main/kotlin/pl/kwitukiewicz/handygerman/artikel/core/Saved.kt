@@ -21,10 +21,14 @@ data class WordIdentity(val lemmaFolded: String, val articleKey: String, val sen
 fun articleKey(genders: List<Gender>): String =
     genders.distinct().sortedBy(Gender::ordinal).joinToString(",") { it.name }
 
-/** 1-based rank of [target] among [entriesInPageOrder] entries sharing its [articleKey]. */
-fun senseNo(entriesInPageOrder: List<Entry>, target: Entry): Int =
-    entriesInPageOrder.filter { articleKey(it.genders) == articleKey(target.genders) }
-        .indexOfFirst { it.entryId == target.entryId } + 1
+/** 1-based rank of [target] among [entriesInPageOrder] entries sharing its [articleKey];
+ * 1 (never 0) when [target] is absent — the defensive fallback matching resolveWordIdentity. */
+fun senseNo(entriesInPageOrder: List<Entry>, target: Entry): Int {
+    val index = entriesInPageOrder
+        .filter { articleKey(it.genders) == articleKey(target.genders) }
+        .indexOfFirst { it.entryId == target.entryId }
+    return if (index < 0) 1 else index + 1
+}
 
 /** The live entries owning [foldedLemma], distinct by entry, in page order. */
 private fun lemmaGroup(repo: WordRepository, foldedLemma: String): List<Entry> =

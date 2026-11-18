@@ -72,6 +72,11 @@ internal fun ComposeTestRule.awaitTag(tag: String) = awaitWhile {
     onAllNodesWithTag(tag).fetchSemanticsNodes().isEmpty()
 }
 
+/** Waits until exactly [count] nodes tagged [tag] exist — content exists, not first frame. */
+internal fun ComposeTestRule.awaitRowCount(tag: String, count: Int) = awaitWhile {
+    onAllNodesWithTag(tag).fetchSemanticsNodes().size != count
+}
+
 /** Advances the frozen clock in slices until [tag]'s semantics text contains [needle]. */
 internal fun ComposeTestRule.awaitSemanticsText(tag: String, needle: String) = awaitWhile {
     semanticsTexts(tag).none { needle in it }

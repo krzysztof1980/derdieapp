@@ -1,6 +1,7 @@
 package pl.kwitukiewicz.handygerman.artikel.data
 
 import android.content.Context
+import android.database.sqlite.SQLiteDatabase
 import androidx.test.core.app.ApplicationProvider
 import pl.kwitukiewicz.handygerman.artikel.core.SavedCursor
 import pl.kwitukiewicz.handygerman.artikel.core.SavedWord
@@ -36,6 +37,48 @@ class SqliteSavedWordsRepositoryTest {
     fun closeStore() {
         helper?.close()
         dbName?.let { context.deleteDatabase(it) }
+    }
+
+    @Test
+    fun downgradeRefusesInsteadOfDeletingSaves() {
+        // An app rollback hands the store a schema newer than the build knows. The
+        // stock SQLiteOpenHelper.onDowngrade deletes the database — for saved words,
+        // the one state that cannot be regenerated; the helper must refuse loudly
+        // and leave the file (and its rows) untouched.
+        val store = openStore()
+        store.save(word("Bank", savedAt = 100L))
+        helper?.close()
+        helper = null
+
+        val path = context.getDatabasePath(dbName!!).absolutePath
+        SQLiteDatabase.openDatabase(path, null, SQLiteDatabase.OPEN_READWRITE).useSetVersion(2)
+
+        val tooOld = SavedWordsDb(context, dbName = dbName!!)
+        try {
+            val thrown = runCatching { tooOld.repository() }.exceptionOrNull()
+            assertTrue(
+                "expected the downgrade to be refused, got: $thrown",
+                thrown is IllegalStateException,
+            )
+        } finally {
+            tooOld.close()
+        }
+
+        // The refusal lost nothing: at a readable version the save is still there.
+        SQLiteDatabase.openDatabase(path, null, SQLiteDatabase.OPEN_READWRITE).useSetVersion(1)
+        val revived = SavedWordsDb(context, dbName = dbName!!)
+        helper = revived
+        val rows = revived.repository().page(null, 10)
+        assertEquals(1, rows.size)
+        assertEquals("Bank", rows.single().lemma)
+    }
+
+    private fun SQLiteDatabase.useSetVersion(version: Int) {
+        try {
+            execSQL("PRAGMA user_version = $version")
+        } finally {
+            close()
+        }
     }
 
     private fun word(
