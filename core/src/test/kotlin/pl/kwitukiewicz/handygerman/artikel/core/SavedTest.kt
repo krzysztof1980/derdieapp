@@ -61,6 +61,15 @@ class SavedTest {
     }
 
     @Test
+    fun senseNoFallsBackToOneForEntryAbsentFromGroup() {
+        // Defensive path (dictionary data-inconsistency only): an entry missing from
+        // its own lemma group still gets a valid 1-based sense — never 0, which no
+        // resolver or tap-target matcher would ever hit again.
+        assertEquals(1, senseNo(entries.take(1), bank2))
+        assertEquals(1, senseNo(emptyList(), bank2))
+    }
+
+    @Test
     fun identityResolvesOverFullLemmaNotQueryHits() {
         val identity = resolveWordIdentity(repo, bank2)
         assertEquals(WordIdentity("bank", "FEMININUM", 2), identity)

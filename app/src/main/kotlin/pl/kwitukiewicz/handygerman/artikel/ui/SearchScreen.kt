@@ -135,7 +135,9 @@ fun SearchScreen(
     // under the generation check (a star state belonging to a superseded answer is
     // the exact drift this pairing prevents).
     var published by remember { mutableStateOf(PublishedAnswers()) }
-    // Bumped by every save/unsave; Task 4's list keys its reload on it.
+    // Bumped by a list-row unsave — the only moment a mounted list must remount.
+    // Detail-side star toggles need no bump: the list exists only while no answer
+    // is on screen, and returning to the blank query remounts and re-reads anyway.
     val savedListEpoch = remember { mutableIntStateOf(0) }
     // Bumped by every store write (toggle/unsave) right where it lands, off-Main — single
     // writer at a time. The publish step's saved-set snapshot (publishedFor, on Default) is
@@ -269,7 +271,6 @@ fun SearchScreen(
                 } else {
                     published.copy(saved = published.saved + identity)
                 }
-                savedListEpoch.intValue++
             }
         }
     }

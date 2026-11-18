@@ -38,6 +38,17 @@ class SavedWordsDb(
         }
     }
 
+    /**
+     * A rollback hands this build a schema newer than it knows. The stock hook's
+     * base body delegates to the public `onDowngrade(SQLiteDatabase)`, which
+     * deletes and recreates the file — the same destroy-user-saves loss [onUpgrade]
+     * refuses to buy with a recreate — so refuse loudly here: the file stays as it
+     * is, and the next (fixed) release opens it again.
+     */
+    override fun onDowngrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        error("saved_words.db version $oldVersion is newer than this build ($newVersion) — refusing to drop user saves")
+    }
+
     /** Opens (creating on first touch) and hands out the repository. */
     fun repository(): SqliteSavedWordsRepository = SqliteSavedWordsRepository(writableDatabase)
 

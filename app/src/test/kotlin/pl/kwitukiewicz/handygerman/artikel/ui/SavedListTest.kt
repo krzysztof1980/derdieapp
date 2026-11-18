@@ -186,8 +186,12 @@ class SavedListTest {
         assertTrue(fakeSaved.saved.isEmpty())
     }
 
+    // Name says what the mechanism delivers: the row is gone when the list comes
+    // back. This is NOT the epoch path (the detail and the list are never mounted
+    // at once) — clearing the query re-mounts and re-reads the store; the in-place
+    // epoch remount is pinned by rowStarUnsavesAndRowVanishes.
     @Test
-    fun unstarFromDetailRemovesRowFromMountedList() {
+    fun unstarInDetailGoneFromListOnReturn() {
         fakeSaved.save(savedWord("Zeit", "zeit", "FEMININUM", 1, "Verlauf", 100L))
         show()
         compose.awaitTag(UiTags.SAVED_ROW)

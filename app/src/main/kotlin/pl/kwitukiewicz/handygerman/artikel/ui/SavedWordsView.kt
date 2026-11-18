@@ -49,7 +49,9 @@ private const val PAGE_LIMIT = 50
  * Newest first, keyset-paged: the next page loads when the visible end comes within
  * three rows, [hydrator] (the dictionary join) and [repository] reads run off-main —
  * this composable owns neither dispatcher choice nor engine access. [epoch] is the
- * save-mutation counter: every star toggle remounts the first page. [dictionaryReady]
+ * unsave-mutation counter: a row-star un-save remounts the first page in place
+ * (detail-side toggles need no remount — the list re-reads when it re-mounts).
+ * [dictionaryReady]
  * flips when the dictionary finishes opening: it re-keys the reload, so rows that
  * mounted from the stored snapshot re-render with live entries.
  */
