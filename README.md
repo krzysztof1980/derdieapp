@@ -116,6 +116,8 @@ needs eyes and a thumb:
 - Star both `die Bank` variants: two rows; kill and relaunch the app — the list and the
   stars come back from `saved_words.db` (survives an app update, and a dictionary update
   via the lemma+article+sense identity).
+- Cold start: the saved list shows up while the dictionary is still opening — rows carry
+  their saved snapshot, and the live dictionary senses replace them the moment it lands.
 - System dark mode: app appearance stays identical (single-appearance design; the
   `NightModeInvarianceTest` pins this).
 

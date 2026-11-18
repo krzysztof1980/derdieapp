@@ -72,7 +72,6 @@ private object Dictionary {
 
     private val lock = Any()
     private var opened: Pair<LookupEngine, Map<String, String>>? = null
-    private var saved: SavedWordsRepository? = null
 
     fun open(context: Context): Pair<LookupEngine, Map<String, String>> = synchronized(lock) {
         opened ?: run {
@@ -82,8 +81,13 @@ private object Dictionary {
     }
 
     /** The saved store, opened once per process the same way — it is a second,
-     * independent small database, never part of the copy-on-first-call dictionary. */
-    fun openSaved(context: Context): SavedWordsRepository = synchronized(lock) {
+     * independent small database, never part of the copy-on-first-call dictionary,
+     * and deliberately NOT under [lock]: the home screen opens it while [open] may
+     * still be inflating the dictionary, and a second-long queue there is exactly
+     * what the eager saved list exists to avoid. Double-open is benign (own file,
+     * per-connection locking). */
+    @Volatile
+    private var saved: SavedWordsRepository? = null
+    fun openSaved(context: Context): SavedWordsRepository =
         saved ?: SavedWordsDb(context).repository().also { saved = it }
-    }
 }

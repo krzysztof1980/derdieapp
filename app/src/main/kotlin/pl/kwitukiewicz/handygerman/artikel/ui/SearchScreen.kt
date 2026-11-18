@@ -59,6 +59,7 @@ import pl.kwitukiewicz.handygerman.artikel.core.Homonyms
 import pl.kwitukiewicz.handygerman.artikel.core.LookupEngine
 import pl.kwitukiewicz.handygerman.artikel.core.LookupResult
 import pl.kwitukiewicz.handygerman.artikel.core.NoResult
+import pl.kwitukiewicz.handygerman.artikel.core.ResolvedSaved
 import pl.kwitukiewicz.handygerman.artikel.core.SavedWord
 import pl.kwitukiewicz.handygerman.artikel.core.SavedWordsRepository
 import pl.kwitukiewicz.handygerman.artikel.core.Single
@@ -149,21 +150,23 @@ fun SearchScreen(
     val dictionary by produceState<DictionaryLoad>(initialValue = DictionaryLoad.Loading) {
         value = withContext(Dispatchers.IO) {
             try {
-                // One try for both stores: a dictionary and a saved store open or die
-                // together — a half-open dictionary screen is not a state to ship.
-                val engine = engineLoader()
-                val savedRepository = savedLoader()
-                DictionaryLoad.Opened(engine, savedRepository)
+                DictionaryLoad.Opened(engineLoader())
             } catch (refused: Exception) {
-                // Any dictionary rejection — foreign schema version, missing asset, fold
+                // Dictionary rejection — foreign schema version, missing asset, fold
                 // drift — is a plain failure here; the stack trace belongs in logcat only.
                 Log.w("SearchScreen", "dictionary load failed", refused)
                 DictionaryLoad.Failed
             }
         }
     }
+    // The saved store opens on its own path, never queued behind the dictionary: it is
+    // a small independent database, and the blank-query home mounts from it while the
+    // seconds-long dictionary open is still in flight (snapshot rows until it lands).
+    val savedStore by produceState<Result<SavedWordsRepository>?>(initialValue = null) {
+        value = withContext(Dispatchers.IO) { runCatching { savedLoader() } }
+    }
     val engine = (dictionary as? DictionaryLoad.Opened)?.engine
-    val savedRepository = (dictionary as? DictionaryLoad.Opened)?.savedRepository
+    val savedRepository = savedStore?.getOrNull()
 
     // Homonym selection lives here, not inside the subview: the wash must follow the
     // candidate on screen. Keyed on the query, not the answer instance — recreation
@@ -406,26 +409,38 @@ fun SearchScreen(
             if (showAbout) AboutDialog(meta = meta, onDismiss = { showAbout = false })
             when (answer) {
                 // no answer: still opening / blank query, or refused for good —
-                // blank query on an open dictionary is the saved list's home state.
-                null -> when (val load = dictionary) {
-                    is DictionaryLoad.Failed -> DictionaryLoadError()
-                    is DictionaryLoad.Opened -> if (query.isEmpty()) {
-                        SavedWordsList(
-                            repository = load.savedRepository,
+                // a refused dictionary OR a refused saved store is the plain error
+                // screen; a blank query with the saved store open is the list's home
+                // state, snapshot-rendered until the dictionary joins live entries.
+                null -> {
+                    val store = savedRepository
+                    when {
+                        dictionary is DictionaryLoad.Failed || savedStore?.isFailure == true ->
+                            DictionaryLoadError()
+                        store != null && query.isEmpty() -> SavedWordsList(
+                            repository = store,
                             hydrator = { saved ->
-                                withContext(Dispatchers.IO) { resolveSaved(load.engine.wordRepository, saved) }
+                                val opened = engine
+                                if (opened == null) {
+                                    saved.map { ResolvedSaved(it, null) }
+                                } else {
+                                    withContext(Dispatchers.IO) {
+                                        resolveSaved(opened.wordRepository, saved)
+                                    }
+                                }
                             },
                             epoch = savedListEpoch.intValue,
+                            dictionaryReady = engine != null,
                             dark = dark,
                             modifier = Modifier.weight(1f),
                             onOpen = { saved ->
                                 pendingOpen = encodeSavedWord(saved)
                                 query = saved.lemma
                             },
-                            onUnsave = { saved -> unsaveSavedWord(load.savedRepository, saved) },
+                            onUnsave = { saved -> unsaveSavedWord(store, saved) },
                         )
+                        else -> Unit // dictionary still opening behind a typed query: blank wash
                     }
-                    DictionaryLoad.Loading -> Unit
                 }
                 is Single -> {
                     val entry = answer.candidate.entry
@@ -476,7 +491,6 @@ private sealed interface DictionaryLoad {
     data object Failed : DictionaryLoad
     data class Opened(
         val engine: LookupEngine,
-        val savedRepository: SavedWordsRepository,
     ) : DictionaryLoad
 }
 

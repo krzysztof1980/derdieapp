@@ -28,7 +28,8 @@ import pl.kwitukiewicz.handygerman.artikel.core.WordIdentity
  * The blank-query home state: saved rows (newest first, live-resolved, snapshot-
  * rendered when a sense vanished) instead of the empty wash; paging appends below
  * the visible end; stars — on rows and on the detail — remove rows from a mounted
- * list through the epoch. The list only exists while the dictionary is open.
+ * list through the epoch. The list mounts from the saved store right away — rows show
+ * their snapshot while the dictionary is still opening and re-hydrate once it is open.
  */
 @RunWith(RobolectricTestRunner::class)
 @OptIn(ExperimentalTestApi::class)
@@ -78,20 +79,63 @@ class SavedListTest {
     }
 
     @Test
-    fun listAppearsOnlyAfterDictionaryOpens() {
+    fun savedListShowsSnapshotsWhileDictionaryStillOpens() {
+        // The saved store is a small independent database: the home list mounts from
+        // it while the seconds-long dictionary open is still in flight, rendering the
+        // stored snapshot (dictionaryReady = false pass-through hydrator).
         val gate = CompletableDeferred<Unit>()
+        fakeSaved.save(savedWord("Wegweiser", "wegweiser", "MASKULINUM", 1, "historischer Hinweis", 100L))
         compose.setContent {
             SearchScreen(
                 engineLoader = { gate.await(); LookupEngine(FakeWordRepository()) },
                 savedLoader = { fakeSaved },
             )
         }
-        compose.mainClock.advanceTimeBy(400)
-        compose.onNodeWithTag(UiTags.SAVED_LIST).assertDoesNotExist()
+        compose.awaitTag(UiTags.SAVED_ROW)
+        val text = compose.rowTexts().single()
+        assertTrue("stored lemma kept", text.contains("Wegweiser"))
+        assertTrue("stored meaning kept", text.contains("historischer Hinweis"))
+        gate.complete(Unit)
+    }
+
+    @Test
+    fun savedListRehydratesWithLiveEntriesWhenDictionaryOpens() {
+        val gate = CompletableDeferred<Unit>()
+        fakeSaved.save(savedWord("Bank", "bank", "FEMININUM", 1, "SNAPSHOT-MEANING", 100L))
+        compose.setContent {
+            SearchScreen(
+                engineLoader = { gate.await(); LookupEngine(bankRepository()) },
+                savedLoader = { fakeSaved },
+            )
+        }
+        compose.awaitTag(UiTags.SAVED_ROW)
+        assertTrue(compose.rowTexts().single().contains("SNAPSHOT-MEANING"))
 
         gate.complete(Unit)
-        compose.awaitTag(UiTags.SAVED_LIST)
-        compose.onNodeWithTag(UiTags.SAVED_LIST).assertExists()
+        // The dictionary becoming ready re-keys the list: the row now shows the live
+        // dictionary's sense instead of the stored snapshot.
+        compose.awaitSemanticsText(UiTags.SAVED_ROW, "Sitzgelegenheit")
+    }
+
+    @Test
+    fun tappingRowWhileDictionaryStillOpensLandsOnVariantOnceItLands() {
+        // A tap in the loading window sets the query and the pending open; the first
+        // publish after the dictionary lands must steer to the saved variant.
+        val gate = CompletableDeferred<Unit>()
+        fakeSaved.save(savedWord("Bank", "bank", "FEMININUM", 2, "Geldinstitut", 100L))
+        compose.setContent {
+            SearchScreen(
+                engineLoader = { gate.await(); LookupEngine(bankRepository()) },
+                savedLoader = { fakeSaved },
+            )
+        }
+        compose.awaitTag(UiTags.SAVED_ROW)
+        compose.onNodeWithTag(UiTags.SAVED_ROW).performClick()
+
+        gate.complete(Unit)
+        compose.awaitSemanticsText(UiTags.WORD, "Bank")
+        assertEquals(listOf("die"), compose.semanticsTexts(UiTags.ARTICLE))
+        compose.assertTextContainsViaSemantics(UiTags.MEANING_LINE, "Geldinstitut")
     }
 
     @Test

@@ -49,23 +49,26 @@ private const val PAGE_LIMIT = 50
  * Newest first, keyset-paged: the next page loads when the visible end comes within
  * three rows, [hydrator] (the dictionary join) and [repository] reads run off-main —
  * this composable owns neither dispatcher choice nor engine access. [epoch] is the
- * save-mutation counter: every star toggle remounts the first page.
+ * save-mutation counter: every star toggle remounts the first page. [dictionaryReady]
+ * flips when the dictionary finishes opening: it re-keys the reload, so rows that
+ * mounted from the stored snapshot re-render with live entries.
  */
 @Composable
 fun SavedWordsList(
     repository: SavedWordsRepository,
     hydrator: suspend (List<SavedWord>) -> List<ResolvedSaved>,
     epoch: Int,
+    dictionaryReady: Boolean,
     dark: Boolean,
     modifier: Modifier = Modifier,
     onOpen: (SavedWord) -> Unit,
     onUnsave: (SavedWord) -> Unit,
 ) {
     val listState = rememberLazyListState()
-    val rows = remember(epoch, repository) { mutableStateListOf<ResolvedSaved>() }
-    var cursor by remember(epoch, repository) { mutableStateOf<SavedCursor?>(null) }
-    var exhausted by remember(epoch, repository) { mutableStateOf(false) }
-    var loadedOnce by remember(epoch, repository) { mutableStateOf(false) }
+    val rows = remember(epoch, repository, dictionaryReady) { mutableStateListOf<ResolvedSaved>() }
+    var cursor by remember(epoch, repository, dictionaryReady) { mutableStateOf<SavedCursor?>(null) }
+    var exhausted by remember(epoch, repository, dictionaryReady) { mutableStateOf(false) }
+    var loadedOnce by remember(epoch, repository, dictionaryReady) { mutableStateOf(false) }
 
     suspend fun loadPage(after: SavedCursor?) {
         val page = withContext(Dispatchers.IO) { repository.page(after, PAGE_LIMIT) }
@@ -74,14 +77,14 @@ fun SavedWordsList(
         exhausted = page.size < PAGE_LIMIT
     }
 
-    LaunchedEffect(epoch, repository) {
+    LaunchedEffect(epoch, repository, dictionaryReady) {
         loadPage(null)
         loadedOnce = true
     }
 
     // Continuous load: every frame the tail approaches, another page is fetched.
     // Emissions are consumed sequentially, so `cursor` can never double-advance.
-    LaunchedEffect(epoch, repository) {
+    LaunchedEffect(epoch, repository, dictionaryReady) {
         snapshotFlow {
             val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
             !exhausted && rows.isNotEmpty() && lastVisible >= rows.size - 3
