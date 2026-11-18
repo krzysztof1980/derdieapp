@@ -31,6 +31,8 @@ fun HomonymDetails(
     dark: Boolean,
     modifier: Modifier = Modifier,
     onSelect: (Int) -> Unit,
+    isSaved: Boolean = false,
+    onToggleSaved: () -> Unit = {},
 ) {
     val candidates = homonyms.candidates
     Column(modifier) {
@@ -52,6 +54,11 @@ fun HomonymDetails(
                 )
             }
         }
-        CandidateDetails(candidates[selectedIndex], dark)
+        CandidateDetails(
+            candidates[selectedIndex],
+            dark,
+            isSaved = isSaved,
+            onToggleSaved = onToggleSaved,
+        )
     }
 }

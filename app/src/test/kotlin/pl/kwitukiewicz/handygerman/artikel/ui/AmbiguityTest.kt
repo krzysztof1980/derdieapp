@@ -15,6 +15,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import pl.kwitukiewicz.handygerman.artikel.core.FakeSavedWordsRepository
 import pl.kwitukiewicz.handygerman.artikel.core.FakeWordRepository
 import pl.kwitukiewicz.handygerman.artikel.core.Gender
 import pl.kwitukiewicz.handygerman.artikel.core.LookupEngine
@@ -36,6 +37,7 @@ class AmbiguityTest {
         compose.setContent {
             SearchScreen(
                 engineLoader = { LookupEngine(FakeWordRepository()) },
+                savedLoader = { FakeSavedWordsRepository() },
                 metaProvider = { FakeWordRepository().meta() },
             )
         }

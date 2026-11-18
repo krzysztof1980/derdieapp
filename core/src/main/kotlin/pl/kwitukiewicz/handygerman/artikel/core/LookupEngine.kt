@@ -8,16 +8,16 @@ package pl.kwitukiewicz.handygerman.artikel.core
  * no exact hit degrades to distinct-lemma [Suggestions], and anything else is [NoResult].
  * A blank input is not a lookup at all: `null`.
  */
-class LookupEngine(private val repo: WordRepository) {
+class LookupEngine(val wordRepository: WordRepository) {
 
     fun lookup(input: String): LookupResult? {
         if (input.isBlank()) return null
         val folded = foldForm(input.trim())
 
-        val hits = repo.exactForm(folded)
+        val hits = wordRepository.exactForm(folded)
         if (hits.isNotEmpty()) return answeredFrom(hits)
 
-        val suggestions = repo.prefixForms(folded, PREFIX_FORM_LIMIT)
+        val suggestions = wordRepository.prefixForms(folded, PREFIX_FORM_LIMIT)
             .distinctBy { it.entry.lemma }
             // Repo order makes a lemma's first hit its lowest-page_order entry: within each
             // form group hits ascend by page_order, and every entry carries its own lemma

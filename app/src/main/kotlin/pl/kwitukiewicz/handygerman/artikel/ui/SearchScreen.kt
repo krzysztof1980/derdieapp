@@ -54,12 +54,20 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import pl.kwitukiewicz.handygerman.artikel.R
+import pl.kwitukiewicz.handygerman.artikel.core.Entry
 import pl.kwitukiewicz.handygerman.artikel.core.Homonyms
 import pl.kwitukiewicz.handygerman.artikel.core.LookupEngine
 import pl.kwitukiewicz.handygerman.artikel.core.LookupResult
 import pl.kwitukiewicz.handygerman.artikel.core.NoResult
+import pl.kwitukiewicz.handygerman.artikel.core.ResolvedSaved
+import pl.kwitukiewicz.handygerman.artikel.core.SavedWord
+import pl.kwitukiewicz.handygerman.artikel.core.SavedWordsRepository
 import pl.kwitukiewicz.handygerman.artikel.core.Single
 import pl.kwitukiewicz.handygerman.artikel.core.Suggestions
+import pl.kwitukiewicz.handygerman.artikel.core.WordIdentity
+import pl.kwitukiewicz.handygerman.artikel.core.foldForm
+import pl.kwitukiewicz.handygerman.artikel.core.resolveSaved
+import pl.kwitukiewicz.handygerman.artikel.core.identitiesOf
 import pl.kwitukiewicz.handygerman.artikel.core.washGenderKey
 
 /**
@@ -95,6 +103,7 @@ import pl.kwitukiewicz.handygerman.artikel.core.washGenderKey
 @Composable
 fun SearchScreen(
     engineLoader: suspend () -> LookupEngine,
+    savedLoader: suspend () -> SavedWordsRepository,
     metaProvider: suspend () -> Map<String, String> = { emptyMap() },
 ) {
     // Single-appearance app: the pin, never isSystemInDarkTheme() — the same decision
@@ -121,6 +130,17 @@ fun SearchScreen(
     // The query `result` was computed for — quoted by NoResult instead of the live field,
     // so the line never names a search whose answer is not on screen yet.
     var resultQuery by remember { mutableStateOf("") }
+    // The identities of the published answer's candidates and which of them sit in
+    // the saved store — one holder so stars and answer can only ever publish together
+    // under the generation check (a star state belonging to a superseded answer is
+    // the exact drift this pairing prevents).
+    var published by remember { mutableStateOf(PublishedAnswers()) }
+    // Bumped by every save/unsave; Task 4's list keys its reload on it.
+    val savedListEpoch = remember { mutableIntStateOf(0) }
+    // Bumped by every store write (toggle/unsave) right where it lands, off-Main — single
+    // writer at a time. The publish step's saved-set snapshot (publishedFor, on Default) is
+    // stale if this moved mid-snapshot; the generation guard in the publish then re-derives.
+    val savedWrites = remember { mutableIntStateOf(0) }
     val generation = remember { mutableIntStateOf(0) }
     // Lookups launch on the composition scope, NOT on the keyed effect below: replacing
     // the query cancels the effect but may not cancel the dispatched lookup — cooperative
@@ -132,14 +152,34 @@ fun SearchScreen(
             try {
                 DictionaryLoad.Opened(engineLoader())
             } catch (refused: Exception) {
-                // Any dictionary rejection — foreign schema version, missing asset, fold
+                // Dictionary rejection — foreign schema version, missing asset, fold
                 // drift — is a plain failure here; the stack trace belongs in logcat only.
                 Log.w("SearchScreen", "dictionary load failed", refused)
                 DictionaryLoad.Failed
             }
         }
     }
+    // The saved store opens on its own path, never queued behind the dictionary: it is
+    // a small independent database, and the blank-query home mounts from it while the
+    // seconds-long dictionary open is still in flight (snapshot rows until it lands).
+    val savedStore by produceState<Result<SavedWordsRepository>?>(initialValue = null) {
+        value = withContext(Dispatchers.IO) { runCatching { savedLoader() } }
+    }
     val engine = (dictionary as? DictionaryLoad.Opened)?.engine
+    val savedRepository = savedStore?.getOrNull()
+
+    // Homonym selection lives here, not inside the subview: the wash must follow the
+    // candidate on screen. Keyed on the query, not the answer instance — recreation
+    // recomputes a fresh answer object, and the choice must ride through rotation:
+    // the same query yields the same deterministically ordered candidates, so the
+    // index stays valid (the getOrNull guard stays as the backstop). A new query
+    // restarts the selection at zero. Declared before the lookup effect because the
+    // publish step seeds it from a pending saved-row open.
+    var homonymSelection by rememberSaveable(query) { mutableIntStateOf(0) }
+    // A saved-row tap awaiting the answer's first publish: which variant to select
+    // once the query resolves. Stored in its seven-field saveable form (decode below);
+    // consumed exactly once, by the publish of its own query; never resurrected.
+    var pendingOpen by rememberSaveable { mutableStateOf<List<String>?>(null) }
 
     val meta by produceState(initialValue = emptyMap(), metaProvider) {
         // The stamps ride the same dictionary the engine loader just opened (or refused);
@@ -162,23 +202,92 @@ fun SearchScreen(
         lookupScope.launch(Dispatchers.Default) {
             val searched = query
             val outcome = engine.lookup(searched)
+            // Snapshot-vs-write race (Review Focus line 3): if a star write landed while this
+            // generation's saved set was being read, re-derive it. A flip completing after
+            // this re-check queues its Main block after this publish, so it applies on top.
+            val writesBefore = savedWrites.intValue
+            var publishedAnswers = publishedFor(engine, savedRepository, outcome)
+            if (savedWrites.intValue != writesBefore) {
+                publishedAnswers = publishedAnswers.copy(
+                    saved = publishedAnswers.identities.values
+                        .filter { savedRepository?.isSaved(it) == true }
+                        .toSet(),
+                )
+            }
             withContext(Dispatchers.Main) {
                 if (generation.intValue == revision) {
                     result = outcome
                     resultQuery = searched
+                    published = publishedAnswers
+                    pendingOpen?.let { targetFields ->
+                        pendingOpen = null
+                        val target = decodeSavedWord(targetFields)
+                        // Only the query the tap came from may consume the target —
+                        // a retype in between must not select across words.
+                        if (target.identity.lemmaFolded == foldForm(searched) &&
+                            outcome?.answer is Homonyms
+                        ) {
+                            val candidates = (outcome.answer as Homonyms).candidates
+                            val index = candidates.indexOfFirst { candidate ->
+                                publishedAnswers.identities[candidate.entry.entryId]?.let {
+                                    it.articleKey == target.identity.articleKey &&
+                                        it.senseNo == target.identity.senseNo
+                                } == true
+                            }
+                            if (index >= 0) homonymSelection = index
+                        }
+                    }
                 }
             }
         }
     }
 
+    // Star = membership of the tapped candidate's (lemma, article, sense). The write
+    // runs off-main; the published set flips only when the write completed, so the
+    // filled star never promises a save the store refused.
+    fun toggleSaved(entry: Entry) {
+        val repository = savedRepository ?: return
+        val identity = published.identities[entry.entryId] ?: return
+        lookupScope.launch(Dispatchers.IO) {
+            val wasSaved = repository.isSaved(identity)
+            if (wasSaved) {
+                repository.unsave(identity)
+            } else {
+                repository.save(
+                    SavedWord(
+                        lemma = entry.lemma,
+                        identity = identity,
+                        firstMeaning = entry.meaningLines.firstOrNull(),
+                        savedAtMillis = System.currentTimeMillis(),
+                    ),
+                )
+            }
+            savedWrites.intValue++
+            withContext(Dispatchers.Main) {
+                published = if (wasSaved) {
+                    published.copy(saved = published.saved - identity)
+                } else {
+                    published.copy(saved = published.saved + identity)
+                }
+                savedListEpoch.intValue++
+            }
+        }
+    }
+
+    // Row star = un-save of exactly that variant, the detail star's inverse; the
+    // epoch bump remounts the mounted list so the row vanishes without a reload.
+    fun unsaveSavedWord(repository: SavedWordsRepository, saved: SavedWord) {
+        lookupScope.launch(Dispatchers.IO) {
+            repository.unsave(saved.identity)
+            savedWrites.intValue++
+            withContext(Dispatchers.Main) {
+                published = published.copy(saved = published.saved - saved.identity)
+                savedListEpoch.intValue++
+            }
+        }
+    }
+
     val answer = result?.answer
-    // Homonym selection lives here, not inside the subview: the wash must follow the
-    // candidate on screen. Keyed on the query, not the answer instance — recreation
-    // recomputes a fresh answer object, and the choice must ride through rotation:
-    // the same query yields the same deterministically ordered candidates, so the
-    // index stays valid (the getOrNull guard above stays as the backstop). A new
-    // query restarts the selection at zero, exactly as the fresh-answer object did.
-    var homonymSelection by rememberSaveable(query) { mutableIntStateOf(0) }
 
     val visibleWash = when (answer) {
         is Single -> answer.candidate.entry.genders
@@ -299,11 +408,60 @@ fun SearchScreen(
             }
             if (showAbout) AboutDialog(meta = meta, onDismiss = { showAbout = false })
             when (answer) {
-                // no answer: either the dictionary is still opening / the query is blank,
-                // or it refused to open — then show the plain error screen, no stack trace
-                null -> if (dictionary is DictionaryLoad.Failed) DictionaryLoadError()
-                is Single -> CandidateDetails(answer.candidate, dark)
-                is Homonyms -> HomonymDetails(answer, homonymSelection, dark) { homonymSelection = it }
+                // no answer: still opening / blank query, or refused for good —
+                // a refused dictionary OR a refused saved store is the plain error
+                // screen; a blank query with the saved store open is the list's home
+                // state, snapshot-rendered until the dictionary joins live entries.
+                null -> {
+                    val store = savedRepository
+                    when {
+                        dictionary is DictionaryLoad.Failed || savedStore?.isFailure == true ->
+                            DictionaryLoadError()
+                        store != null && query.isEmpty() -> SavedWordsList(
+                            repository = store,
+                            hydrator = { saved ->
+                                val opened = engine
+                                if (opened == null) {
+                                    saved.map { ResolvedSaved(it, null) }
+                                } else {
+                                    withContext(Dispatchers.IO) {
+                                        resolveSaved(opened.wordRepository, saved)
+                                    }
+                                }
+                            },
+                            epoch = savedListEpoch.intValue,
+                            dictionaryReady = engine != null,
+                            dark = dark,
+                            modifier = Modifier.weight(1f),
+                            onOpen = { saved ->
+                                pendingOpen = encodeSavedWord(saved)
+                                query = saved.lemma
+                            },
+                            onUnsave = { saved -> unsaveSavedWord(store, saved) },
+                        )
+                        else -> Unit // dictionary still opening behind a typed query: blank wash
+                    }
+                }
+                is Single -> {
+                    val entry = answer.candidate.entry
+                    CandidateDetails(
+                        answer.candidate,
+                        dark,
+                        isSaved = published.saved.contains(published.identities[entry.entryId]),
+                        onToggleSaved = { toggleSaved(entry) },
+                    )
+                }
+                is Homonyms -> {
+                    val selected = answer.candidates.getOrNull(homonymSelection)?.entry
+                    HomonymDetails(
+                        answer,
+                        homonymSelection,
+                        dark,
+                        onSelect = { homonymSelection = it },
+                        isSaved = selected?.entryId?.let { published.saved.contains(published.identities[it]) } == true,
+                        onToggleSaved = { selected?.let { toggleSaved(it) } },
+                    )
+                }
                 is Suggestions -> SuggestionRows(answer.entries, dark) { query = it }
                 NoResult -> NoResultLine(resultQuery)
             }
@@ -331,7 +489,40 @@ private val keyboardShownOnLaunch = AtomicBoolean(false)
 private sealed interface DictionaryLoad {
     data object Loading : DictionaryLoad
     data object Failed : DictionaryLoad
-    data class Opened(val engine: LookupEngine) : DictionaryLoad
+    data class Opened(
+        val engine: LookupEngine,
+    ) : DictionaryLoad
+}
+
+/**
+ * The identity view of a published answer: every candidate's [WordIdentity] (keyed by
+ * entry id) and the subset the saved store holds. Lives in one holder so the two can
+ * never disagree about which answer generation they describe.
+ */
+private data class PublishedAnswers(
+    val identities: Map<Long, WordIdentity> = emptyMap(),
+    val saved: Set<WordIdentity> = emptySet(),
+)
+
+/**
+ * Off-main half of a publish: batched identity resolution for the answer's candidates
+ * plus their saved-state, all read from the store right here so what Main publishes
+ * belongs to this generation. No candidates (suggestions/no-result/blank) → no stars.
+ */
+private fun publishedFor(
+    engine: LookupEngine,
+    repository: SavedWordsRepository?,
+    outcome: LookupResult?,
+): PublishedAnswers {
+    val entries = when (val answer = outcome?.answer) {
+        is Single -> listOf(answer.candidate.entry)
+        is Homonyms -> answer.candidates.map { it.entry }
+        else -> emptyList()
+    }
+    if (repository == null || entries.isEmpty()) return PublishedAnswers()
+    val identities = engine.identitiesOf(entries)
+    val saved = identities.values.filter { repository.isSaved(it) }.toSet()
+    return PublishedAnswers(identities, saved)
 }
 
 /** Centered plain text — the launch must survive an unusable dictionary. */
@@ -350,3 +541,29 @@ private fun DictionaryLoadError() {
         )
     }
 }
+
+
+/**
+ * The pending saved-row open round-trips through process death in its saveable
+ * field list (Compose's `rememberSaveable` hosts primitives, not custom classes).
+ * Only the identity triple steers selection; the rest rides along unchanged.
+ */
+private fun encodeSavedWord(word: SavedWord): List<String> =
+    listOf(
+        word.lemma,
+        word.identity.lemmaFolded,
+        word.identity.articleKey,
+        word.identity.senseNo.toString(),
+        word.firstMeaning ?: "",
+        word.savedAtMillis.toString(),
+        word.rowid.toString(),
+    )
+
+private fun decodeSavedWord(fields: List<String>): SavedWord =
+    SavedWord(
+        lemma = fields[0],
+        identity = WordIdentity(fields[1], fields[2], fields[3].toInt()),
+        firstMeaning = fields[4].ifEmpty { null },
+        savedAtMillis = fields[5].toLong(),
+        rowid = fields[6].toLong(),
+    )

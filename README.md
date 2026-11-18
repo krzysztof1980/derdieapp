@@ -109,6 +109,15 @@ needs eyes and a thumb:
 - `xyz` → no-result row quoting the typed text.
 - Landscape rotation keeps the query (and, after it settles, the same answer — the
   saveable round-trip is pinned by `SearchScreenRecreationTest`).
+- Star `der Teil`, open the empty home: one row (`der Teil`) — star it there: gone, and
+  the detail star goes outlined again.
+- Search `Teil`, star `das Teil` only: reopening shows `der Teil` unstarred; tapping the
+  `das Teil` row lands on the `das` segment, not on the first candidate.
+- Star both `die Bank` variants: two rows; kill and relaunch the app — the list and the
+  stars come back from `saved_words.db` (survives an app update, and a dictionary update
+  via the lemma+article+sense identity).
+- Cold start: the saved list shows up while the dictionary is still opening — rows carry
+  their saved snapshot, and the live dictionary senses replace them the moment it lands.
 - System dark mode: app appearance stays identical (single-appearance design; the
   `NightModeInvarianceTest` pins this).
 

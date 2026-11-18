@@ -7,6 +7,9 @@
     <string name="app_long_name">HandyGerman: Artikel</string>
     <string name="query_hint">German noun or form</string>
     <string name="clear_query">Clear search</string>
+    <string name="save_word">Save word</string>
+    <string name="unsave_word">Remove from saved</string>
+    <string name="saved_empty_hint">Tap the star on a word to save it here.</string>
     <string name="menu_desc">More options</string>
     <string name="menu_about">About</string>
     <string name="plural_forms">Plural: %1$s</string>

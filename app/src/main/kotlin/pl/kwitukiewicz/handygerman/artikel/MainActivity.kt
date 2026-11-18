@@ -10,6 +10,8 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import pl.kwitukiewicz.handygerman.artikel.core.LookupEngine
+import pl.kwitukiewicz.handygerman.artikel.core.SavedWordsRepository
+import pl.kwitukiewicz.handygerman.artikel.data.SavedWordsDb
 import pl.kwitukiewicz.handygerman.artikel.data.SqliteWordRepository
 import pl.kwitukiewicz.handygerman.artikel.data.WordsDb
 import pl.kwitukiewicz.handygerman.artikel.ui.SearchScreen
@@ -51,6 +53,7 @@ class MainActivity : ComponentActivity() {
             HandyGermanTheme {
                 SearchScreen(
                     engineLoader = { Dictionary.open(appContext).first },
+                    savedLoader = { Dictionary.openSaved(appContext) },
                     metaProvider = { Dictionary.open(appContext).second },
                 )
             }
@@ -76,4 +79,15 @@ private object Dictionary {
             Pair(LookupEngine(repository), repository.meta()).also { opened = it }
         }
     }
+
+    /** The saved store, opened once per process the same way — it is a second,
+     * independent small database, never part of the copy-on-first-call dictionary,
+     * and deliberately NOT under [lock]: the home screen opens it while [open] may
+     * still be inflating the dictionary, and a second-long queue there is exactly
+     * what the eager saved list exists to avoid. Double-open is benign (own file,
+     * per-connection locking). */
+    @Volatile
+    private var saved: SavedWordsRepository? = null
+    fun openSaved(context: Context): SavedWordsRepository =
+        saved ?: SavedWordsDb(context).repository().also { saved = it }
 }
