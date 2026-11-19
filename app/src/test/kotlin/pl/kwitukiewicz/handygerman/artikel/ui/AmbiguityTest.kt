@@ -5,8 +5,10 @@ import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import org.junit.Assert.assertTrue
 import androidx.compose.ui.test.waitUntilExactlyOneExists
@@ -15,6 +17,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import pl.kwitukiewicz.handygerman.artikel.core.FakeLearningRepository
 import pl.kwitukiewicz.handygerman.artikel.core.FakeSavedWordsRepository
 import pl.kwitukiewicz.handygerman.artikel.core.FakeWordRepository
 import pl.kwitukiewicz.handygerman.artikel.core.Gender
@@ -38,6 +41,7 @@ class AmbiguityTest {
             SearchScreen(
                 engineLoader = { LookupEngine(FakeWordRepository()) },
                 savedLoader = { FakeSavedWordsRepository() },
+                learningLoader = { FakeLearningRepository() },
                 metaProvider = { FakeWordRepository().meta() },
             )
         }
@@ -68,9 +72,10 @@ class AmbiguityTest {
     fun aboutDialogAttributesWiktionaryAndTheParser() {
         showSearch()
         // 2026-11-15: About lives in the overflow menu now (Amendment #4), not a footer link.
+        // 2026-11-19: the quiz added a second entry — tap About by label, not position.
         compose.onNodeWithTag(UiTags.MENU).performClick()
-        compose.waitUntilExactlyOneExists(hasTestTag(UiTags.MENU_ITEM), SETTLE_TIMEOUT_MS)
-        compose.onNodeWithTag(UiTags.MENU_ITEM).performClick()
+        compose.waitUntilExactlyOneExists(hasText("About"), SETTLE_TIMEOUT_MS)
+        compose.onNodeWithText("About").performClick()
         compose.waitUntilExactlyOneExists(hasTestTag(UiTags.ABOUT_BODY), SETTLE_TIMEOUT_MS)
         compose.assertTextContainsViaSemantics(UiTags.ABOUT_BODY, "CC BY-SA 4.0")
         compose.assertTextContainsViaSemantics(UiTags.ABOUT_BODY, "GFDL")

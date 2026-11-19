@@ -16,6 +16,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import pl.kwitukiewicz.handygerman.artikel.core.Entry
+import pl.kwitukiewicz.handygerman.artikel.core.FakeLearningRepository
 import pl.kwitukiewicz.handygerman.artikel.core.FakeSavedWordsRepository
 import pl.kwitukiewicz.handygerman.artikel.core.Gender
 import pl.kwitukiewicz.handygerman.artikel.core.Kind
@@ -47,7 +48,7 @@ class SavedListTest {
         store: FakeSavedWordsRepository = fakeSaved,
         engineLoader: suspend () -> LookupEngine = { LookupEngine(FakeWordRepository()) },
     ) = compose.setContent {
-        SearchScreen(engineLoader = engineLoader, savedLoader = { store })
+        SearchScreen(engineLoader = engineLoader, savedLoader = { store }, learningLoader = { FakeLearningRepository() })
     }
 
     /** Row texts of the saved list, in display order. */
@@ -89,6 +90,7 @@ class SavedListTest {
             SearchScreen(
                 engineLoader = { gate.await(); LookupEngine(FakeWordRepository()) },
                 savedLoader = { fakeSaved },
+                learningLoader = { FakeLearningRepository() },
             )
         }
         // Text-wait, not node-wait (see rehydrates test): the stored meaning must
@@ -106,6 +108,7 @@ class SavedListTest {
             SearchScreen(
                 engineLoader = { gate.await(); LookupEngine(bankRepository()) },
                 savedLoader = { fakeSaved },
+                learningLoader = { FakeLearningRepository() },
             )
         }
         // Wait for the snapshot TEXT, not just the row node: a tagged row can exist
@@ -129,6 +132,7 @@ class SavedListTest {
             SearchScreen(
                 engineLoader = { gate.await(); LookupEngine(bankRepository()) },
                 savedLoader = { fakeSaved },
+                learningLoader = { FakeLearningRepository() },
             )
         }
         compose.awaitTag(UiTags.SAVED_ROW)

@@ -19,8 +19,10 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import pl.kwitukiewicz.handygerman.artikel.core.Entry
+import pl.kwitukiewicz.handygerman.artikel.core.FakeLearningRepository
 import pl.kwitukiewicz.handygerman.artikel.core.FakeSavedWordsRepository
 import pl.kwitukiewicz.handygerman.artikel.core.FakeWordRepository
+import pl.kwitukiewicz.handygerman.artikel.core.LearningRepository
 import pl.kwitukiewicz.handygerman.artikel.core.Gender
 import pl.kwitukiewicz.handygerman.artikel.core.Kind
 import pl.kwitukiewicz.handygerman.artikel.core.LookupEngine
@@ -60,6 +62,7 @@ class SearchScreenRecreationTest {
         scenario.close()
         SearchScreenRecreationTestHost.SEARCH_REPOSITORY_PROVIDER = { FakeWordRepository() }
         SearchScreenRecreationTestHost.SEARCH_SAVED_PROVIDER = { FakeSavedWordsRepository() }
+        SearchScreenRecreationTestHost.SEARCH_LEARNING_PROVIDER = { FakeLearningRepository() }
     }
 
     private fun fieldText(): String =
@@ -154,6 +157,7 @@ class SearchScreenRecreationTestHost : ComponentActivity() {
             SearchScreen(
                 engineLoader = { LookupEngine(SEARCH_REPOSITORY_PROVIDER()) },
                 savedLoader = { SEARCH_SAVED_PROVIDER() },
+                learningLoader = { SEARCH_LEARNING_PROVIDER() },
             )
         }
     }
@@ -163,5 +167,6 @@ class SearchScreenRecreationTestHost : ComponentActivity() {
         // their own corpus/store before launch.
         var SEARCH_REPOSITORY_PROVIDER: () -> WordRepository = { FakeWordRepository() }
         var SEARCH_SAVED_PROVIDER: () -> SavedWordsRepository = { FakeSavedWordsRepository() }
+        var SEARCH_LEARNING_PROVIDER: () -> LearningRepository = { FakeLearningRepository() }
     }
 }

@@ -10,6 +10,7 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import pl.kwitukiewicz.handygerman.artikel.core.LookupEngine
+import pl.kwitukiewicz.handygerman.artikel.core.LearningRepository
 import pl.kwitukiewicz.handygerman.artikel.core.SavedWordsRepository
 import pl.kwitukiewicz.handygerman.artikel.data.SavedWordsDb
 import pl.kwitukiewicz.handygerman.artikel.data.SqliteWordRepository
@@ -54,6 +55,7 @@ class MainActivity : ComponentActivity() {
                 SearchScreen(
                     engineLoader = { Dictionary.open(appContext).first },
                     savedLoader = { Dictionary.openSaved(appContext) },
+                    learningLoader = { Dictionary.openLearning(appContext) },
                     metaProvider = { Dictionary.open(appContext).second },
                 )
             }
@@ -90,4 +92,10 @@ private object Dictionary {
     private var saved: SavedWordsRepository? = null
     fun openSaved(context: Context): SavedWordsRepository =
         saved ?: SavedWordsDb(context).repository().also { saved = it }
+
+    /** The learning face of the same file, memoed the same lock-free way. */
+    @Volatile
+    private var learning: LearningRepository? = null
+    fun openLearning(context: Context): LearningRepository =
+        learning ?: SavedWordsDb(context).learningRepository().also { learning = it }
 }

@@ -19,8 +19,10 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import pl.kwitukiewicz.handygerman.artikel.core.Entry
+import pl.kwitukiewicz.handygerman.artikel.core.FakeLearningRepository
 import pl.kwitukiewicz.handygerman.artikel.core.FakeSavedWordsRepository
 import pl.kwitukiewicz.handygerman.artikel.core.FakeWordRepository
+import pl.kwitukiewicz.handygerman.artikel.core.LearningRepository
 import pl.kwitukiewicz.handygerman.artikel.core.Gender
 import pl.kwitukiewicz.handygerman.artikel.core.Kind
 import pl.kwitukiewicz.handygerman.artikel.core.LookupEngine
@@ -46,6 +48,7 @@ class SearchScreenSavedTest {
     val compose = createComposeRule()
 
     private val fakeSaved = FakeSavedWordsRepository()
+    private val fakeLearning = FakeLearningRepository()
 
     // Two die-Bank variants (`banken` on the second only — Task 1's corpus shape)
     // plus a third unrelated word for the stale-publish choreography.
@@ -66,8 +69,9 @@ class SearchScreenSavedTest {
     private fun show(
         engineLoader: suspend () -> LookupEngine = { LookupEngine(FakeWordRepository()) },
         savedLoader: suspend () -> SavedWordsRepository = { fakeSaved },
+        learningLoader: suspend () -> LearningRepository = { fakeLearning },
     ) = compose.setContent {
-        SearchScreen(engineLoader = engineLoader, savedLoader = savedLoader)
+        SearchScreen(engineLoader = engineLoader, savedLoader = savedLoader, learningLoader = learningLoader)
     }
 
     @Test

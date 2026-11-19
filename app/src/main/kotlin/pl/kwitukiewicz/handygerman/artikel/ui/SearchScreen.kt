@@ -48,24 +48,31 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import android.util.Log
+import androidx.activity.compose.BackHandler
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import pl.kwitukiewicz.handygerman.artikel.R
+import pl.kwitukiewicz.handygerman.artikel.core.AnswerOutcome
 import pl.kwitukiewicz.handygerman.artikel.core.Entry
 import pl.kwitukiewicz.handygerman.artikel.core.Homonyms
+import pl.kwitukiewicz.handygerman.artikel.core.LearningRepository
 import pl.kwitukiewicz.handygerman.artikel.core.LookupEngine
 import pl.kwitukiewicz.handygerman.artikel.core.LookupResult
 import pl.kwitukiewicz.handygerman.artikel.core.NoResult
+import pl.kwitukiewicz.handygerman.artikel.core.QuizItem
 import pl.kwitukiewicz.handygerman.artikel.core.ResolvedSaved
 import pl.kwitukiewicz.handygerman.artikel.core.SavedWord
 import pl.kwitukiewicz.handygerman.artikel.core.SavedWordsRepository
+import pl.kwitukiewicz.handygerman.artikel.core.SessionPlan
 import pl.kwitukiewicz.handygerman.artikel.core.Single
 import pl.kwitukiewicz.handygerman.artikel.core.Suggestions
 import pl.kwitukiewicz.handygerman.artikel.core.WordIdentity
 import pl.kwitukiewicz.handygerman.artikel.core.foldForm
+import pl.kwitukiewicz.handygerman.artikel.core.onAnswer
+import pl.kwitukiewicz.handygerman.artikel.core.planQuizSession
 import pl.kwitukiewicz.handygerman.artikel.core.resolveSaved
 import pl.kwitukiewicz.handygerman.artikel.core.identitiesOf
 import pl.kwitukiewicz.handygerman.artikel.core.washGenderKey
@@ -104,6 +111,7 @@ import pl.kwitukiewicz.handygerman.artikel.core.washGenderKey
 fun SearchScreen(
     engineLoader: suspend () -> LookupEngine,
     savedLoader: suspend () -> SavedWordsRepository,
+    learningLoader: suspend () -> LearningRepository,
     metaProvider: suspend () -> Map<String, String> = { emptyMap() },
 ) {
     // Single-appearance app: the pin, never isSystemInDarkTheme() — the same decision
@@ -167,8 +175,22 @@ fun SearchScreen(
     val savedStore by produceState<Result<SavedWordsRepository>?>(initialValue = null) {
         value = withContext(Dispatchers.IO) { runCatching { savedLoader() } }
     }
+    // The learning store opens on the same independent path — a second face of the
+    // saves file; a refused open joins the other stores on the plain error screen.
+    val learningStore by produceState<Result<LearningRepository>?>(initialValue = null) {
+        value = withContext(Dispatchers.IO) { runCatching { learningLoader() } }
+    }
     val engine = (dictionary as? DictionaryLoad.Opened)?.engine
     val savedRepository = savedStore?.getOrNull()
+    val learningRepository = learningStore?.getOrNull()
+
+    // The overflow's queue count — an honest read of the store, refreshed when the
+    // store opens and when the list epoch moves (graduation unsaves bump it too).
+    val queueCount by produceState(0, savedRepository, savedListEpoch.intValue) {
+        value = withContext(Dispatchers.IO) {
+            runCatching { savedRepository?.page(null, QUEUE_LIMIT)?.size ?: 0 }.getOrDefault(0)
+        }
+    }
 
     // Homonym selection lives here, not inside the subview: the wash must follow the
     // candidate on screen. Keyed on the query, not the answer instance — recreation
@@ -182,6 +204,53 @@ fun SearchScreen(
     // once the query resolves. Stored in its seven-field saveable form (decode below);
     // consumed exactly once, by the publish of its own query; never resurrected.
     var pendingOpen by rememberSaveable { mutableStateOf<List<String>?>(null) }
+
+    // The quiz run (Review Focus 1): membership, once-per-session and the tally all
+    // derive from these three saveables — `quizPlan` is the shuffled snapshot of
+    // `|`-joined identity encodings taken when the run started, `quizOutcomeLog` the
+    // appended "<encoded>:ok|miss|grad" answers. Rows re-derive from the store after
+    // recreation (plan ∩ store); membership itself never re-reads, so a row saved
+    // mid-run joins the NEXT session only (Review Focus 4).
+    var quizActive by rememberSaveable { mutableStateOf(false) }
+    var quizPlan by rememberSaveable { mutableStateOf<List<String>?>(null) }
+    var quizOutcomeLog by rememberSaveable { mutableStateOf<List<String>?>(null) }
+    var quizItem by remember { mutableStateOf<QuizItem?>(null) }
+    var quizTapped by remember { mutableStateOf<String?>(null) }
+    var quizFeedback by remember { mutableStateOf(QuizFeedback.NONE) }
+    // The answered card stays mounted through the feedback wash — the next card's
+    // derivation must not swap the washed card out from under the user.
+    var quizAnsweredItem by remember { mutableStateOf<QuizItem?>(null) }
+
+    val quizEntries = quizPlan
+    val quizLog = quizOutcomeLog.orEmpty()
+    val quizAnswered = quizLog.map { it.substringBeforeLast(':') }.toSet()
+    val currentQuizIdentity = quizEntries?.firstOrNull { it !in quizAnswered }
+    val quizQueueEmpty = quizEntries?.isEmpty() == true
+
+    // The card on screen: re-derived off-main from the store ∩ plan (snapshot rows
+    // while the dictionary is still opening). The repairs the plan started with
+    // were executed at run start; the states map is not needed for card content.
+    LaunchedEffect(quizActive, currentQuizIdentity, savedRepository, engine) {
+        val encoded = currentQuizIdentity
+        val repository = savedRepository
+        if (!quizActive || repository == null) {
+            if (!quizActive) quizItem = null
+            return@LaunchedEffect
+        }
+        if (encoded == null) {
+            // All answered: the derived card retires (the wash holds the answered
+            // one until it clears), which is what lets the end card mount.
+            quizItem = null
+            return@LaunchedEffect
+        }
+        if (quizItem?.word?.identity?.let(::encodeQuizIdentity) == encoded) return@LaunchedEffect
+        quizItem = withContext(Dispatchers.IO) {
+            (planQuizSession(quizSnapshotRows(engine, repository), states = emptyMap())
+                as? SessionPlan.Run)
+                ?.items
+                ?.firstOrNull { encodeQuizIdentity(it.word.identity) == encoded }
+        }
+    }
 
     val meta by produceState(initialValue = emptyMap(), metaProvider) {
         // The stamps ride the same dictionary the engine loader just opened (or refused);
@@ -288,9 +357,96 @@ fun SearchScreen(
         }
     }
 
+    // Run start: one membership snapshot (every saved row, hydrated), the re-queue
+    // repair executed once, then the plan stored shuffled — the active run never
+    // re-reads membership, only the card rows below it.
+    fun startQuiz() {
+        val repository = savedRepository ?: return
+        val learning = learningRepository ?: return
+        quizTapped = null
+        quizFeedback = QuizFeedback.NONE
+        quizAnsweredItem = null
+        lookupScope.launch(Dispatchers.IO) {
+            val plan = planQuizSession(quizSnapshotRows(engine, repository), learning.states())
+            val items = if (plan is SessionPlan.Run) {
+                plan.repairs.forEach(learning::requeue)
+                plan.items.shuffled()
+            } else {
+                emptyList()
+            }
+            withContext(Dispatchers.Main) {
+                quizPlan = items.map { encodeQuizIdentity(it.word.identity) }
+                quizOutcomeLog = emptyList()
+                quizActive = true
+            }
+        }
+    }
+
+    // One answer per card: the level read and the write run off-main; the log entry
+    // (the run's once-per-session record, saveable) lands with the feedback frame.
+    fun answerQuiz(item: QuizItem, label: String) {
+        val repository = savedRepository ?: return
+        val learning = learningRepository ?: return
+        if (quizFeedback != QuizFeedback.NONE) return
+        val identity = item.word.identity
+        quizAnsweredItem = item
+        quizTapped = label
+        lookupScope.launch(Dispatchers.IO) {
+            val level = learning.states()[identity]?.level ?: 0
+            val outcome = onAnswer(level, label in item.answers)
+            when (outcome) {
+                is AnswerOutcome.Correct -> learning.putLevel(identity, outcome.newLevel)
+                is AnswerOutcome.Missed -> learning.putLevel(identity, 0)
+                is AnswerOutcome.Graduated -> {
+                    // The spec's pinned order: graduate first, then un-save — a crash
+                    // between the writes leaves a repairable state, never a lost word.
+                    learning.graduate(identity, System.currentTimeMillis())
+                    repository.unsave(identity)
+                }
+            }
+            val mark = when (outcome) {
+                is AnswerOutcome.Correct -> "ok"
+                is AnswerOutcome.Missed -> "miss"
+                is AnswerOutcome.Graduated -> "grad"
+            }
+            withContext(Dispatchers.Main) {
+                quizOutcomeLog = quizOutcomeLog.orEmpty() + "${encodeQuizIdentity(identity)}:$mark"
+                quizFeedback =
+                    if (outcome is AnswerOutcome.Missed) QuizFeedback.MISSED else QuizFeedback.CORRECT
+                if (outcome is AnswerOutcome.Graduated) {
+                    // The drained row leaves the list, the count and the menu.
+                    savedListEpoch.intValue++
+                }
+            }
+        }
+    }
+
+    // ✕ and system back end the run in place: earned levels stay written, no end card.
+    fun exitQuiz() {
+        quizActive = false
+        quizPlan = null
+        quizOutcomeLog = null
+        quizItem = null
+        quizAnsweredItem = null
+        quizTapped = null
+        quizFeedback = QuizFeedback.NONE
+    }
+
+    LaunchedEffect(quizFeedback) {
+        if (quizFeedback != QuizFeedback.NONE) {
+            delay(QUIZ_FEEDBACK_MS)
+            quizFeedback = QuizFeedback.NONE
+            quizTapped = null
+            quizAnsweredItem = null
+        }
+    }
+    BackHandler(enabled = quizActive) { exitQuiz() }
+
     val answer = result?.answer
 
-    val visibleWash = when (answer) {
+    val visibleWash = if (quizActive) {
+        null // the wash belongs to the answer area's card, never the drilled noun
+    } else when (answer) {
         is Single -> answer.candidate.entry.genders
         is Homonyms -> answer.candidates.getOrNull(homonymSelection)?.entry?.genders
         else -> null
@@ -324,6 +480,55 @@ fun SearchScreen(
             val fieldFocused by fieldInteraction.collectIsFocusedAsState()
             var menuOpen by remember { mutableStateOf(false) }
             var showAbout by remember { mutableStateOf(false) }
+
+            // The overflow rides both header states: mid-run About opens over the
+            // run (the saveable quiz state parks for it) while Start quiz hides —
+            // no second run stacks on an active one.
+            val overflow: @Composable () -> Unit = {
+                Box {
+                    IconButton(
+                        onClick = { menuOpen = true },
+                        modifier = Modifier
+                            .testTag(UiTags.MENU)
+                            .padding(end = 4.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = stringResource(R.string.menu_desc),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        if (!quizActive) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.start_quiz, queueCount)) },
+                                onClick = {
+                                    menuOpen = false
+                                    startQuiz()
+                                },
+                                modifier = Modifier.testTag(UiTags.MENU_ITEM),
+                            )
+                        }
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.menu_about)) },
+                            onClick = {
+                                menuOpen = false
+                                showAbout = true
+                            },
+                            modifier = Modifier.testTag(UiTags.MENU_ITEM),
+                        )
+                    }
+                }
+            }
+
+            if (quizActive) {
+                QuizHeader(
+                    position = (quizLog.size + 1).coerceAtMost(quizEntries?.size ?: 0),
+                    total = quizEntries?.size ?: 0,
+                    onExit = { exitQuiz() },
+                    overflow = overflow,
+                )
+            } else {
             Row(verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(
                 value = query,
@@ -382,33 +587,30 @@ fun SearchScreen(
             )
                 // Amendment #4 (2026-11-15): the About attribution moved from a footer
                 // link into this overflow — one entry today, room for settings tomorrow.
-                Box {
-                    IconButton(
-                        onClick = { menuOpen = true },
-                        modifier = Modifier
-                            .testTag(UiTags.MENU)
-                            .padding(end = 4.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = stringResource(R.string.menu_desc),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.menu_about)) },
-                            onClick = {
-                                menuOpen = false
-                                showAbout = true
-                            },
-                            modifier = Modifier.testTag(UiTags.MENU_ITEM),
-                        )
-                    }
-                }
+                overflow()
+            }
             }
             if (showAbout) AboutDialog(meta = meta, onDismiss = { showAbout = false })
-            when (answer) {
+            if (quizActive) {
+                // The answered card holds the stage through its feedback wash; the end
+                // card takes over only once the wash has cleared.
+                val quizShown =
+                    if (quizFeedback != QuizFeedback.NONE) quizAnsweredItem else quizItem
+                when {
+                    quizQueueEmpty -> QuizEmpty()
+                    quizShown != null -> QuizCard(
+                        quizShown,
+                        dark,
+                        quizTapped,
+                        quizFeedback,
+                    ) { label -> answerQuiz(quizShown, label) }
+                    currentQuizIdentity == null -> QuizEnd(
+                        graduated = quizLog.count { it.endsWith(":grad") },
+                        missed = quizLog.count { it.endsWith(":miss") },
+                        onDone = { exitQuiz() },
+                    )
+                }
+            } else when (answer) {
                 // no answer: still opening / blank query, or refused for good —
                 // a refused dictionary OR a refused saved store is the plain error
                 // screen; a blank query with the saved store open is the list's home
@@ -416,7 +618,8 @@ fun SearchScreen(
                 null -> {
                     val store = savedRepository
                     when {
-                        dictionary is DictionaryLoad.Failed || savedStore?.isFailure == true ->
+                        dictionary is DictionaryLoad.Failed || savedStore?.isFailure == true ||
+                            learningStore?.isFailure == true ->
                             DictionaryLoadError()
                         store != null && query.isEmpty() -> SavedWordsList(
                             repository = store,
@@ -482,6 +685,12 @@ fun SearchScreen(
 }
 
 private const val DEBOUNCE_MS = 150L
+
+/** The whole saved queue in one page — the quiz plan's ceiling and the menu count. */
+private const val QUEUE_LIMIT = 1000
+
+/** How long a tapped card holds its feedback wash before the next one mounts. */
+private const val QUIZ_FEEDBACK_MS = 700L
 
 /** Autofocus gate: the launch keyboard shows once per process, never on recreations. */
 private val keyboardShownOnLaunch = AtomicBoolean(false)
@@ -568,3 +777,25 @@ private fun decodeSavedWord(fields: List<String>): SavedWord =
         savedAtMillis = fields[5].toLong(),
         rowid = fields[6].toLong(),
     )
+
+/**
+ * The saveable encoding of one quiz-plan identity — the [encodeSavedWord] codec's
+ * identity fields, `|`-joined into a single saveable string so an outcome-log entry
+ * can carry it with a `:ok|miss|grad` suffix. None of the three fields can contain
+ * `|` or `:`, so both splits are exact.
+ */
+private fun encodeQuizIdentity(identity: WordIdentity): String =
+    "${identity.lemmaFolded}|${identity.articleKey}|${identity.senseNo}"
+
+/**
+ * The run's membership source: every saved row, hydrated to the live dictionary
+ * (snapshot rows while the engine is still opening). Runs on the caller's IO hop.
+ */
+private fun quizSnapshotRows(
+    engine: LookupEngine?,
+    repository: SavedWordsRepository,
+): List<ResolvedSaved> {
+    val rows = repository.page(null, QUEUE_LIMIT)
+    val opened = engine ?: return rows.map { ResolvedSaved(it, null) }
+    return resolveSaved(opened.wordRepository, rows)
+}

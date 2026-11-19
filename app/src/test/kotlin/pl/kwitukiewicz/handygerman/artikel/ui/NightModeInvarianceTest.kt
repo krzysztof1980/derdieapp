@@ -9,8 +9,10 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.waitUntilExactlyOneExists
 import org.junit.Rule
@@ -18,6 +20,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import pl.kwitukiewicz.handygerman.artikel.core.FakeLearningRepository
 import pl.kwitukiewicz.handygerman.artikel.core.FakeSavedWordsRepository
 import pl.kwitukiewicz.handygerman.artikel.core.FakeWordRepository
 import pl.kwitukiewicz.handygerman.artikel.core.Gender
@@ -45,7 +48,7 @@ class NightModeInvarianceTest {
     private fun showSearch() {
         compose.setContent {
             HandyGermanTheme {
-                SearchScreen(engineLoader = { LookupEngine(FakeWordRepository()) }, savedLoader = { FakeSavedWordsRepository() })
+                SearchScreen(engineLoader = { LookupEngine(FakeWordRepository()) }, savedLoader = { FakeSavedWordsRepository() }, learningLoader = { FakeLearningRepository() })
                 SchemeProbe()
             }
         }
@@ -68,10 +71,11 @@ class NightModeInvarianceTest {
     @Test
     fun aboutDialogOpensUnderNightQualifiers() {
         showSearch()
-        // Amendment #4: dialog now reached via the overflow menu.
+        // Amendment #4: dialog now reached via the overflow menu (2026-11-19: by label —
+        // the overflow carries the quiz entry too).
         compose.onNodeWithTag(UiTags.MENU).performClick()
-        compose.waitUntilExactlyOneExists(hasTestTag(UiTags.MENU_ITEM), SETTLE_TIMEOUT_MS)
-        compose.onNodeWithTag(UiTags.MENU_ITEM).performClick()
+        compose.waitUntilExactlyOneExists(hasText("About"), SETTLE_TIMEOUT_MS)
+        compose.onNodeWithText("About").performClick()
         compose.waitUntilExactlyOneExists(hasTestTag(UiTags.ABOUT_BODY), SETTLE_TIMEOUT_MS)
     }
 

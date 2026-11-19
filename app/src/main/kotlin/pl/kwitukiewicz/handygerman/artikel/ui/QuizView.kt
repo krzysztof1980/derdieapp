@@ -67,11 +67,14 @@ fun QuizHeader(position: Int, total: Int, onExit: () -> Unit, overflow: @Composa
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Text(
-            text = stringResource(R.string.quiz_counter, position, total),
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.testTag(UiTags.QUIZ_COUNTER),
-        )
+        // The empty run (total 0) has no position to state — no counter, just the ✕.
+        if (total > 0) {
+            Text(
+                text = stringResource(R.string.quiz_counter, position, total),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.testTag(UiTags.QUIZ_COUNTER),
+            )
+        }
         Spacer(Modifier.weight(1f))
         overflow()
     }

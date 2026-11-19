@@ -23,6 +23,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import pl.kwitukiewicz.handygerman.artikel.core.FakeLearningRepository
 import pl.kwitukiewicz.handygerman.artikel.core.FakeSavedWordsRepository
 import pl.kwitukiewicz.handygerman.artikel.core.FakeWordRepository
 import pl.kwitukiewicz.handygerman.artikel.core.LookupEngine
@@ -48,7 +49,7 @@ class SearchScreenTest {
     val compose = createComposeRule()
 
     private fun showSearch() {
-        compose.setContent { SearchScreen(engineLoader = { LookupEngine(FakeWordRepository()) }, savedLoader = { FakeSavedWordsRepository() }) }
+        compose.setContent { SearchScreen(engineLoader = { LookupEngine(FakeWordRepository()) }, savedLoader = { FakeSavedWordsRepository() }, learningLoader = { FakeLearningRepository() }) }
     }
 
     private fun type(term: String) {
@@ -128,7 +129,7 @@ class SearchScreenTest {
         // A foreign schema version — the planned guard against shipping a db the app's
         // NounsSchema cannot read — must surface as text, not as a launch crash.
         compose.setContent {
-            SearchScreen(engineLoader = { throw IllegalStateException("schema version 99 does not equal 1") }, savedLoader = { FakeSavedWordsRepository() })
+            SearchScreen(engineLoader = { throw IllegalStateException("schema version 99 does not equal 1") }, savedLoader = { FakeSavedWordsRepository() }, learningLoader = { FakeLearningRepository() })
         }
         compose.awaitTag(UiTags.DICTIONARY_ERROR)
         val error = compose.semanticsTexts(UiTags.DICTIONARY_ERROR).single()
@@ -187,7 +188,7 @@ class SearchScreenTest {
         // generation and only resumes afterwards.
         compose.mainClock.autoAdvance = false
         val repo = GatingRepository()
-        compose.setContent { SearchScreen(engineLoader = { LookupEngine(repo) }, savedLoader = { FakeSavedWordsRepository() }) }
+        compose.setContent { SearchScreen(engineLoader = { LookupEngine(repo) }, savedLoader = { FakeSavedWordsRepository() }, learningLoader = { FakeLearningRepository() }) }
         compose.mainClock.advanceTimeByFrame()
         val field = compose.onNode(hasSetTextAction())
 
@@ -214,11 +215,12 @@ class SearchScreenTest {
     fun aboutLivesInTheOverflowMenuNotOnTheBaseScreen() {
         showSearch()
         // Amendment #4: the footer link is gone — nothing labeled "About" until the
-        // overflow opens, and the menu's single entry carries the exact label.
+        // overflow opens. 2026-11-19 (quiz): the overflow holds two entries — Start quiz
+        // carrying the queue count, then About, the entry this test pins.
         compose.onNodeWithText("About").assertDoesNotExist()
         compose.onNodeWithTag(UiTags.MENU).performClick()
-        compose.awaitTag(UiTags.MENU_ITEM)
-        compose.onNodeWithTag(UiTags.MENU_ITEM).assertTextEquals("About")
+        compose.awaitRowCount(UiTags.MENU_ITEM, 2)
+        compose.onAllNodesWithTag(UiTags.MENU_ITEM)[1].assertTextEquals("About")
     }
 
     private companion object {
