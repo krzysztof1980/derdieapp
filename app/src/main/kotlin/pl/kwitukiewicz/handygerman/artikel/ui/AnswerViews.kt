@@ -58,6 +58,7 @@ internal object UiTags {
     const val MENU = "menu" // chrome: overflow button on the search row (2026-11-15)
     const val MENU_ITEM = "menuItem" // chrome: an entry in that overflow menu
     const val ABOUT_BODY = "aboutBody"
+    const val ABOUT_LEARNED = "aboutLearned" // chrome: the prominent learned-count line in About
     const val QUIZ_HEADER = "quizHeader" // chrome: quiz run header replacing the search row (quiz)
     const val QUIZ_EXIT = "quizExit" // chrome: ✕ ending the run in place
     const val QUIZ_COUNTER = "quizCounter" // chrome: "n of m" run progress

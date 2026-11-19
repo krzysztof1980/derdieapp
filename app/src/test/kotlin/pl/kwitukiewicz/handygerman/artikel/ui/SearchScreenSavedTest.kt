@@ -157,7 +157,16 @@ class SearchScreenSavedTest {
         compose.onNodeWithText("Back to list").performClick()
         compose.onNodeWithTag(UiTags.MENU).performClick()
         compose.onNodeWithText("About").performClick()
-        compose.awaitSemanticsText(UiTags.ABOUT_BODY, "1 nouns learned")
+        // Separated from the attribution body onto its own node — and dressed to be
+        // noticed: the celebration emoji leads the line (2026-11-19 usability note).
+        compose.awaitSemanticsText(UiTags.ABOUT_LEARNED, "1 nouns learned")
+        compose.semanticsTexts(UiTags.ABOUT_LEARNED).single().let {
+            assertTrue("learned line carries the celebration emoji: $it", it.contains("🎉"))
+        }
+        assertTrue(
+            "the count is no longer buried in the attribution body",
+            compose.semanticsTexts(UiTags.ABOUT_BODY).none { t -> "nouns learned" in t },
+        )
     }
 
     @Test

@@ -194,6 +194,28 @@ class SavedListTest {
     }
 
     /**
+     * The empty-list hint must not hide at the bottom of the screen in fine
+     * print: it sits at the centre of the area the list would occupy — the pin
+     * asserts coincidence of centres, not pixels (size/style is the screenshot's
+     * business; presence was pinned before, placement never).
+     */
+    @Test
+    fun emptyHintIsCenteredInTheListArea() {
+        show()
+        compose.awaitTag(UiTags.SAVED_EMPTY)
+
+        val hint = compose.onNodeWithTag(UiTags.SAVED_EMPTY).fetchSemanticsNode().boundsInRoot
+        val list = compose.onNodeWithTag(UiTags.SAVED_LIST).fetchSemanticsNode().boundsInRoot
+
+        val hintCx = hint.center.x
+        val hintCy = hint.center.y
+        val listCx = list.center.x
+        val listCy = list.center.y
+        assertEquals("horizontally centred in the list area", listCx, hintCx, 8f)
+        assertEquals("vertically centred in the list area", listCy, hintCy, 8f)
+    }
+
+    /**
      * The row star is the detail star's inverse — including its second half:
      * "the star is the learning", so un-saving here deletes the in-progress
      * learning row in the same IO hop (no orphaned level behind a gone save).

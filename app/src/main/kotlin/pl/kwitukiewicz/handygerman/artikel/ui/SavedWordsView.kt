@@ -1,6 +1,7 @@
 package pl.kwitukiewicz.handygerman.artikel.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -27,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
@@ -96,12 +98,14 @@ fun SavedWordsList(
         }
     }
 
-    Column(modifier) {
+    // fillMaxWidth: the screen hands this box a weight (height) modifier only —
+    // a wrap-content Box whose sole child matchParentSizes collapses to zero
+    // width, so the width is pinned here, not inherited.
+    Box(modifier.fillMaxWidth()) {
         LazyColumn(
             state = listState,
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
+                .matchParentSize()
                 .testTag(UiTags.SAVED_LIST),
         ) {
             items(rows, key = { resolved ->
@@ -110,14 +114,19 @@ fun SavedWordsList(
                 SavedWordRow(resolved, dark, onOpen, onUnsave)
             }
         }
+        // The hint is the screen's only content when the list is empty — it reads
+        // as an accident in small print at the bottom (2026-11-19 usability note),
+        // so it takes the centre of the list area at bodyLarge.
         if (loadedOnce && rows.isEmpty()) {
             Text(
                 text = stringResource(R.string.saved_empty_hint),
                 modifier = Modifier
+                    .align(Alignment.Center)
                     .testTag(UiTags.SAVED_EMPTY)
-                    .padding(horizontal = 24.dp, vertical = 12.dp),
-                style = MaterialTheme.typography.bodyMedium,
+                    .padding(horizontal = 32.dp),
+                style = MaterialTheme.typography.bodyLarge,
                 color = WashPalette.onWashMuted(dark),
+                textAlign = TextAlign.Center,
             )
         }
     }
