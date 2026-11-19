@@ -41,7 +41,8 @@ class SqliteSavedWordsRepositoryTest {
 
     @Test
     fun downgradeRefusesInsteadOfDeletingSaves() {
-        // An app rollback hands the store a schema newer than the build knows. The
+        // An app rollback hands the store a schema newer than the build knows —
+        // here a stamp ahead of this build's 2. The
         // stock SQLiteOpenHelper.onDowngrade deletes the database — for saved words,
         // the one state that cannot be regenerated; the helper must refuse loudly
         // and leave the file (and its rows) untouched.
@@ -51,7 +52,7 @@ class SqliteSavedWordsRepositoryTest {
         helper = null
 
         val path = context.getDatabasePath(dbName!!).absolutePath
-        SQLiteDatabase.openDatabase(path, null, SQLiteDatabase.OPEN_READWRITE).useSetVersion(2)
+        SQLiteDatabase.openDatabase(path, null, SQLiteDatabase.OPEN_READWRITE).useSetVersion(3)
 
         val tooOld = SavedWordsDb(context, dbName = dbName!!)
         try {
