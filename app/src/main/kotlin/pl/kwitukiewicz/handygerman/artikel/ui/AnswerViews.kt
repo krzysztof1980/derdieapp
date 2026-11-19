@@ -58,6 +58,14 @@ internal object UiTags {
     const val MENU = "menu" // chrome: overflow button on the search row (2026-11-15)
     const val MENU_ITEM = "menuItem" // chrome: an entry in that overflow menu
     const val ABOUT_BODY = "aboutBody"
+    const val QUIZ_HEADER = "quizHeader" // chrome: quiz run header replacing the search row (quiz)
+    const val QUIZ_EXIT = "quizExit" // chrome: ✕ ending the run in place
+    const val QUIZ_COUNTER = "quizCounter" // chrome: "n of m" run progress
+    const val QUIZ_WORD = "quizWord" // quiz card: the drilled noun
+    const val QUIZ_MEANING = "quizMeaning" // quiz card: disambiguating meaning line
+    const val QUIZ_ANSWER = "quizAnswer" // quiz card: one of the four fixed article buttons
+    const val QUIZ_END = "quizEnd" // chrome: end-of-run tally card
+    const val QUIZ_EMPTY = "quizEmpty" // chrome: empty-queue hint card
 }
 
 /** `#AARRGGBB` uppercase of [color]; what the hidden [UiTags.WASH_COLOR] node exposes. */

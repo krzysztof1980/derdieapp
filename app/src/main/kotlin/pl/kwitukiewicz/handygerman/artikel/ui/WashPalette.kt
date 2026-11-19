@@ -76,6 +76,12 @@ object WashPalette {
     private val FIELD_OUTLINE = Color(0xFF79747E)
     private val FIELD_OUTLINE_FOCUSED = Color(0xFF48484B)
 
+    // error on the quiz card: the missed-answer marker — UI chrome, outside the
+    // contrast-locked gender system, single-appearance like the outlines it sits
+    // beside. Measured >= 3:1 against every light wash; the pin floor is 1.5,
+    // enforced by WashPaletteTest.
+    private val ERROR = Color(0xFFB3261E)
+
     /**
      * Resting outline of the outlined query field — UI chrome, never a wash, never
      * gender-coded. Single-appearance values like the washes they sit on.
@@ -84,6 +90,9 @@ object WashPalette {
 
     /** The focused outline: the resting gray darkened, same chrome role. */
     fun fieldOutlineFocused(): Color = FIELD_OUTLINE_FOCUSED
+
+    /** The missed-answer marker: outline/tint of the wrong tapped article button. */
+    fun error(): Color = ERROR
 
     fun wash(g: Gender, dark: Boolean): Color =
         when (washGenderKey(listOf(g))) {

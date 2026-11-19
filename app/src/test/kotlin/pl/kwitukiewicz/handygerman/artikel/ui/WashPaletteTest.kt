@@ -3,6 +3,7 @@ package pl.kwitukiewicz.handygerman.artikel.ui
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -56,6 +57,44 @@ class WashPaletteTest {
     fun fieldOutlineHexesArePinned() {
         assertEquals("FF79747E", argb(WashPalette.fieldOutline()))
         assertEquals("FF48484B", argb(WashPalette.fieldOutlineFocused()))
+    }
+
+    /**
+     * The missed-answer error token — chrome like the field outlines, never
+     * gender-coded: pinned hex, distinct from every backdrop/ink token it must
+     * read against, and >= 1.5:1 on the light family it renders over (the only
+     * family this app paints), mirroring the field-outline convention below.
+     */
+    @Test
+    fun errorHexIsPinned() {
+        assertEquals("FFB3261E", argb(WashPalette.error()))
+    }
+
+    @Test
+    fun errorDiffersFromEveryBackdropAndInk() {
+        val error = argb(WashPalette.error())
+        val genders = listOf(Gender.MASKULINUM, Gender.FEMININUM, Gender.NEUTRUM, Gender.UTRUM)
+        for (dark in listOf(false, true)) {
+            for (g in genders) {
+                assertNotEquals("wash($g, dark=$dark) equals error", argb(WashPalette.wash(g, dark)), error)
+                assertNotEquals("onWash($g, dark=$dark) equals error", argb(WashPalette.onWash(g, dark)), error)
+            }
+            assertNotEquals("onWashMuted(dark=$dark) equals error", argb(WashPalette.onWashMuted(dark)), error)
+        }
+        assertNotEquals("fieldOutline equals error", argb(WashPalette.fieldOutline()), error)
+        assertNotEquals("fieldOutlineFocused equals error", argb(WashPalette.fieldOutlineFocused()), error)
+    }
+
+    @Test
+    fun errorClearsTheChromeFloorOnEveryLightWash() {
+        val groups = listOf(Gender.MASKULINUM, Gender.FEMININUM, Gender.NEUTRUM, Gender.UTRUM)
+        for (g in groups) {
+            val ratio = contrast(hex(WashPalette.error()), hex(WashPalette.wash(g, dark = false)))
+            assertTrue(
+                "error on wash($g, light) is ${"%.2f".format(ratio)} < 1.5",
+                ratio >= 1.5,
+            )
+        }
     }
 
     /**

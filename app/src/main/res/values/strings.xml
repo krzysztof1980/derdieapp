@@ -21,4 +21,17 @@
     <string name="about_source">de.wiktionary.org, dump %1$s</string>
     <string name="about_parser">Entries parsed and exported by wiktiopeggynary.</string>
     <string name="about_close">Close</string>
+    <string name="start_quiz">Start quiz · %1$d</string>
+    <string name="quiz_exit">End quiz</string>
+    <string name="quiz_counter">%1$d of %2$d</string>
+    <string name="quiz_empty_hint">Nothing to practice — star nouns to learn here.</string>
+    <string name="quiz_end">Graduated %1$d · Missed %2$d</string>
+    <string name="quiz_end_back">Back to list</string>
+    <string name="about_learned_count">%1$d nouns learned</string>
+    <!-- Article button labels: the German inflections themselves are the drilled
+         content, never translated (spec: locale note). -->
+    <string name="quiz_answer_der" translatable="false">der</string>
+    <string name="quiz_answer_die" translatable="false">die</string>
+    <string name="quiz_answer_das" translatable="false">das</string>
+    <string name="quiz_answer_dash" translatable="false">–</string>
 </resources>
