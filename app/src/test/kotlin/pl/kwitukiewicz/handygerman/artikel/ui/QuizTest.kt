@@ -9,6 +9,8 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ActivityScenario
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -22,6 +24,7 @@ import pl.kwitukiewicz.handygerman.artikel.core.FakeSavedWordsRepository
 import pl.kwitukiewicz.handygerman.artikel.core.FakeWordRepository
 import pl.kwitukiewicz.handygerman.artikel.core.Gender
 import pl.kwitukiewicz.handygerman.artikel.core.Kind
+import pl.kwitukiewicz.handygerman.artikel.core.LearningRepository
 import pl.kwitukiewicz.handygerman.artikel.core.LearningState
 import pl.kwitukiewicz.handygerman.artikel.core.SavedWord
 import pl.kwitukiewicz.handygerman.artikel.core.WordIdentity
@@ -53,7 +56,7 @@ class QuizTest {
     private val zeitId = WordIdentity("zeit", "FEMININUM", 1)
     private val teilId = WordIdentity("teil", "NEUTRUM", 1)
 
-    private fun launch() {
+    private fun launch(learning: LearningRepository = fakeLearning) {
         SearchScreenRecreationTestHost.SEARCH_REPOSITORY_PROVIDER = {
             FakeWordRepository(
                 entries = listOf(bank, zeit, teil),
@@ -65,7 +68,7 @@ class QuizTest {
             )
         }
         SearchScreenRecreationTestHost.SEARCH_SAVED_PROVIDER = { fakeSaved }
-        SearchScreenRecreationTestHost.SEARCH_LEARNING_PROVIDER = { fakeLearning }
+        SearchScreenRecreationTestHost.SEARCH_LEARNING_PROVIDER = { learning }
         scenario = ActivityScenario.launch(SearchScreenRecreationTestHost::class.java)
     }
 
@@ -114,6 +117,24 @@ class QuizTest {
 
     private fun tapAnswer(label: String) = compose.onNodeWithText(label).performClick()
 
+    /**
+     * The level write's receipt: the counter now advances at the tap (the answered
+     * entry is recorded before the store write is dispatched), so tests that rotate,
+     * exit, or assert the store right after a tap must first wait for the write to
+     * land — the fake store map is authority.
+     */
+    private fun awaitLevel(word: String, level: Int) {
+        repeat(CLOCK_SLICES) {
+            compose.mainClock.advanceTimeBy(CLOCK_SLICE_MS)
+            Thread.sleep(WALL_SLEEP_MS)
+            if (fakeLearning.statesMap[identityOf(word)] == LearningState(level, null)) return
+        }
+        throw AssertionError(
+            "level $level never written for $word " +
+                "(has ${fakeLearning.statesMap[identityOf(word)]})",
+        )
+    }
+
     private fun assertCounter(needle: String) = compose.awaitSemanticsText(UiTags.QUIZ_COUNTER, needle)
 
     @Test
@@ -144,13 +165,13 @@ class QuizTest {
         val first = awaitCardWord(null)
         tapAnswer(articleOf(first))
         assertCounter("2 of 3")
-        assertEquals(LearningState(1, null), fakeLearning.statesMap[identityOf(first)])
+        awaitLevel(first, 1)
 
         val second = awaitCardWord(first)
         assertTrue(second != first)
         tapAnswer(if (articleOf(second) == "der") "die" else "der")
         assertCounter("3 of 3")
-        assertEquals(LearningState(0, null), fakeLearning.statesMap[identityOf(second)])
+        awaitLevel(second, 0)
     }
 
     @Test
@@ -165,6 +186,7 @@ class QuizTest {
         val first = awaitCardWord(null)
         tapAnswer(if (articleOf(first) == "der") "die" else "der") // miss
         assertCounter("2 of 2")
+        awaitLevel(first, 0)
         val second = awaitCardWord(first)
         tapAnswer(articleOf(second)) // correct at level 2 → graduates, unsaves
         compose.awaitTag(UiTags.QUIZ_END)
@@ -198,6 +220,7 @@ class QuizTest {
         val first = awaitCardWord(null)
         tapAnswer(articleOf(first))
         assertCounter("2 of 2")
+        awaitLevel(first, 1) // the ✕ may drop the run, never an already-written level
         compose.onNodeWithTag(UiTags.QUIZ_EXIT).performClick()
         compose.awaitRowCount(UiTags.SAVED_ROW, 2)
         compose.pumpFrames()
@@ -250,6 +273,7 @@ class QuizTest {
         val first = awaitCardWord(null)
         tapAnswer(articleOf(first))
         assertCounter("2 of 3")
+        awaitLevel(first, 1) // rotate with the first answer's write already landed
 
         scenario.recreate()
         assertCounter("2 of 3")
@@ -265,6 +289,115 @@ class QuizTest {
         assertEquals(LearningState(1, null), fakeLearning.statesMap[identityOf(first)])
         assertEquals(LearningState(0, null), fakeLearning.statesMap[identityOf(second)])
         assertEquals(LearningState(1, null), fakeLearning.statesMap[identityOf(third)])
+    }
+
+    /**
+     * Review Focus 1, write-window variant: a rotation that lands while the
+     * answer's store write is still in flight must not re-offer the card (the
+     * once-per-session rule survives the process boundary, not just rotation
+     * between cards). The gate parks the level write; the answered entry is already
+     * recorded at the tap, so after the restore the run ENDS (the card is never
+     * re-offered), the write the store already holds lands exactly once, and the
+     * lost mark back-fill leaves the tally at zero rather than doubled.
+     */
+    @Test
+    fun rotationWhileTheAnswerWriteIsInFlightNeverReOffersTheCard() {
+        val gated = GatingLearningRepository(fakeLearning)
+        fakeLearning.putLevel(bankId, 1)
+        saveBank()
+        launch(gated)
+        openMenuAndStartQuiz(1)
+        awaitCardWord(null)
+
+        gated.blockNextWrite()
+        tapAnswer("die")
+        runBlocking { gated.inFlight.await() } // the putLevel write is mid-flight
+
+        scenario.recreate()
+        gated.releaseNext()
+
+        compose.awaitTag(UiTags.QUIZ_END) // the run ENDS — the card never comes back
+        assertTrue(compose.onAllNodesWithTag(UiTags.QUIZ_WORD).fetchSemanticsNodes().isEmpty())
+        compose.assertTextContainsViaSemantics(UiTags.QUIZ_END, "Graduated 0 · Missed 0")
+        // A write already handed to the (blocking, uninterruptible) store lands —
+        // exactly once: the restore must not re-offer the card, and the lost
+        // outcome-log backfill must not turn the tally against it.
+        assertEquals(LearningState(2, null), fakeLearning.statesMap[bankId])
+    }
+
+    /**
+     * A double tap is one answer: the second tap lands while the first write is
+     * still in flight and the card still looks live — it must be rejected, not
+     * tallied and written a second time (one correct answer per item per session).
+     */
+    @Test
+    fun doubleTapCountsAndWritesOnce() {
+        val gated = GatingLearningRepository(fakeLearning)
+        fakeLearning.putLevel(bankId, 2) // the next correct answer graduates
+        saveBank()
+        launch(gated)
+        openMenuAndStartQuiz(1)
+        awaitCardWord(null)
+
+        gated.blockNextWrite()
+        tapAnswer("die")
+        runBlocking { gated.inFlight.await() }
+        tapAnswer("die") // second tap while the graduation write is parked
+        gated.releaseNext()
+
+        compose.awaitTag(UiTags.QUIZ_END)
+        // One graduation tallied, not two.
+        compose.assertTextContainsViaSemantics(UiTags.QUIZ_END, "Graduated 1 · Missed 0")
+        assertTrue(fakeSaved.saved.isEmpty()) // the row left the queue exactly once
+    }
+}
+
+/**
+ * A [LearningRepository] that can park one write off-main: [blockNextWrite] arms a
+ * one-shot gate, the next write signals [inFlight] and blocks until [releaseNext] —
+ * the repository-side twin of [GatingRepository], making the answer-write window
+ * reproducible. Cancelled blocked writes never reach the delegate, mirroring a
+ * cancellation that lands between the store write and the outcome-log append.
+ */
+private class GatingLearningRepository(private val delegate: LearningRepository) : LearningRepository {
+
+    val inFlight = CompletableDeferred<Unit>()
+    private val gate = CompletableDeferred<Unit>()
+
+    @Volatile
+    private var armed = false
+
+    fun blockNextWrite() {
+        armed = true
+    }
+
+    fun releaseNext() {
+        gate.complete(Unit)
+    }
+
+    override fun states(): Map<WordIdentity, LearningState> = delegate.states()
+
+    override fun putLevel(identity: WordIdentity, level: Int) {
+        passGate()
+        delegate.putLevel(identity, level)
+    }
+
+    override fun graduate(identity: WordIdentity, atMillis: Long) {
+        passGate()
+        delegate.graduate(identity, atMillis)
+    }
+
+    override fun requeue(identity: WordIdentity) = delegate.requeue(identity)
+
+    override fun delete(identity: WordIdentity) = delegate.delete(identity)
+
+    override fun learnedCount(): Int = delegate.learnedCount()
+
+    private fun passGate() {
+        if (!armed) return
+        armed = false
+        inFlight.complete(Unit)
+        runBlocking { gate.await() }
     }
 }
 

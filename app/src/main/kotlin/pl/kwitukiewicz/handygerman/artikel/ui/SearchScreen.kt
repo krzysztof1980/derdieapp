@@ -245,12 +245,22 @@ fun SearchScreen(
             return@LaunchedEffect
         }
         if (quizItem?.word?.identity?.let(::encodeQuizIdentity) == encoded) return@LaunchedEffect
-        quizItem = withContext(Dispatchers.IO) {
-            (planQuizSession(quizSnapshotRows(engine, repository), states = emptyMap())
-                as? SessionPlan.Run)
-                ?.items
-                ?.firstOrNull { encodeQuizIdentity(it.word.identity) == encoded }
+        val rows = withContext(Dispatchers.IO) { quizSnapshotRows(engine, repository) }
+        val card = (planQuizSession(rows, states = emptyMap()) as? SessionPlan.Run)
+            ?.items
+            ?.firstOrNull { encodeQuizIdentity(it.word.identity) == encoded }
+        if (card == null) {
+            // The store is open and no longer holds this plan entry: it cannot be
+            // quizzed, so answer it as a skip — the run advances past it instead of
+            // parking on a blank card forever. (Unreachable via the UI: answers are
+            // recorded before their writes remove rows, so the plan never outlives
+            // the row mid-run; this is the stranding guard the reviewer's Review
+            // Focus 1 pass demanded.)
+            quizOutcomeLog = quizOutcomeLog?.let { it + "$encoded:skip" }
+            quizItem = null
+            return@LaunchedEffect
         }
+        quizItem = card
     }
 
     val meta by produceState(initialValue = emptyMap(), metaProvider) {
@@ -388,26 +398,36 @@ fun SearchScreen(
         }
     }
 
-    // One answer per card: the level read and the write run off-main; the log entry
-    // (the run's once-per-session record, saveable) lands with the feedback frame.
+    // One answer per card, guarded by IDENTITY: a tap counts only while its card
+    // is the run's current unanswered entry. That rejects the double tap whose
+    // first write is still in flight (the feedback flag flips only when the write
+    // lands — too late a gate), a re-tap after the wash cleared off a stale card,
+    // and any tap into a run that moved on underneath. The log entry is written
+    // synchronously at the tap — before dispatching the write — so a recreation
+    // or process death mid-write never re-offers an answered card; the outcome
+    // mark back-fills when the write lands (Review Focus 1).
     fun answerQuiz(item: QuizItem, label: String) {
         val repository = savedRepository ?: return
         val learning = learningRepository ?: return
-        if (quizFeedback != QuizFeedback.NONE) return
-        val identity = item.word.identity
+        val entries = quizPlan ?: return
+        val log = quizOutcomeLog ?: return
+        val encoded = encodeQuizIdentity(item.word.identity)
+        val answered = log.mapTo(mutableSetOf()) { it.substringBeforeLast(':') }
+        if (entries.firstOrNull { it !in answered } != encoded) return
+        quizOutcomeLog = log + "$encoded:pending"
         quizAnsweredItem = item
         quizTapped = label
         lookupScope.launch(Dispatchers.IO) {
-            val level = learning.states()[identity]?.level ?: 0
+            val level = learning.states()[item.word.identity]?.level ?: 0
             val outcome = onAnswer(level, label in item.answers)
             when (outcome) {
-                is AnswerOutcome.Correct -> learning.putLevel(identity, outcome.newLevel)
-                is AnswerOutcome.Missed -> learning.putLevel(identity, 0)
+                is AnswerOutcome.Correct -> learning.putLevel(item.word.identity, outcome.newLevel)
+                is AnswerOutcome.Missed -> learning.putLevel(item.word.identity, 0)
                 is AnswerOutcome.Graduated -> {
                     // The spec's pinned order: graduate first, then un-save — a crash
                     // between the writes leaves a repairable state, never a lost word.
-                    learning.graduate(identity, System.currentTimeMillis())
-                    repository.unsave(identity)
+                    learning.graduate(item.word.identity, System.currentTimeMillis())
+                    repository.unsave(item.word.identity)
                 }
             }
             val mark = when (outcome) {
@@ -416,7 +436,9 @@ fun SearchScreen(
                 is AnswerOutcome.Graduated -> "grad"
             }
             withContext(Dispatchers.Main) {
-                quizOutcomeLog = quizOutcomeLog.orEmpty() + "${encodeQuizIdentity(identity)}:$mark"
+                quizOutcomeLog = quizOutcomeLog?.map {
+                    if (it == "$encoded:pending") "$encoded:$mark" else it
+                }
                 quizFeedback =
                     if (outcome is AnswerOutcome.Missed) QuizFeedback.MISSED else QuizFeedback.CORRECT
                 if (outcome is AnswerOutcome.Graduated) {
@@ -612,10 +634,19 @@ fun SearchScreen(
                 AboutDialog(meta = meta, learnedCount = learnedCount, onDismiss = { showAbout = false })
             }
             if (quizActive) {
-                // The answered card holds the stage through its feedback wash; the end
-                // card takes over only once the wash has cleared.
+                // The answered card holds the stage through its feedback wash AND
+                // through the pending write (the log entry is recorded at the tap,
+                // the mark lands with the write) — the buttons never vanish under a
+                // fast second tap. After a process death the frozen card is gone
+                // with the rest of the run's UI state, so the pending entry alone
+                // never blocks the end card.
+                val quizPending = quizLog.any { it.endsWith(":pending") }
                 val quizShown =
-                    if (quizFeedback != QuizFeedback.NONE) quizAnsweredItem else quizItem
+                    if (quizFeedback != QuizFeedback.NONE || (quizPending && quizAnsweredItem != null)) {
+                        quizAnsweredItem
+                    } else {
+                        quizItem
+                    }
                 when {
                     quizQueueEmpty -> QuizEmpty()
                     quizShown != null -> QuizCard(
