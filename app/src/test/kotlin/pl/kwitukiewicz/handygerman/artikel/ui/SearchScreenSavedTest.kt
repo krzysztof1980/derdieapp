@@ -131,6 +131,35 @@ class SearchScreenSavedTest {
         assertTrue(fakeLearning.statesMap.isEmpty())
     }
 
+    /**
+     * The About dialog counts graduates: after a card graduates a word the dialog —
+     * still reached through the overflow — carries "N nouns learned". Count staleness
+     * after a re-star is the spec's accepted lag (refresh on dialog open, repair at
+     * the next session build), so it is a documented non-assert here.
+     */
+    @Test
+    fun aboutShowsLearnedCountAfterGraduation() {
+        show()
+        compose.typeQuery("Zeit")
+        compose.awaitTag(UiTags.SAVE_TOGGLE)
+        compose.onNodeWithTag(UiTags.SAVE_TOGGLE).performClick()
+        compose.awaitStarDescription("Remove from saved")
+        fakeLearning.putLevel(WordIdentity("zeit", "FEMININUM", 1), 2)
+
+        compose.typeQuery("")
+        compose.onNodeWithTag(UiTags.MENU).performClick()
+        compose.awaitSemanticsText(UiTags.MENU_ITEM, "Start quiz · 1")
+        compose.onNodeWithText("Start quiz · 1").performClick()
+        compose.awaitTag(UiTags.QUIZ_WORD)
+        compose.onNodeWithText("die").performClick()
+        compose.awaitTag(UiTags.QUIZ_END)
+
+        compose.onNodeWithText("Back to list").performClick()
+        compose.onNodeWithTag(UiTags.MENU).performClick()
+        compose.onNodeWithText("About").performClick()
+        compose.awaitSemanticsText(UiTags.ABOUT_BODY, "1 nouns learned")
+    }
+
     @Test
     fun starStateSurvivesQueryRoundTrip() {
         show()

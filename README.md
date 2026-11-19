@@ -118,6 +118,19 @@ needs eyes and a thumb:
   via the lemma+article+sense identity).
 - Cold start: the saved list shows up while the dictionary is still opening — rows carry
   their saved snapshot, and the live dictionary senses replace them the moment it lands.
+- Quiz loop: star two nouns, overflow → `Start quiz · 2` — cards show word + meaning and
+  the four fixed `der / die / das / –` buttons; ✕ mid-run is back to the list with no end
+  card, earned levels stay.
+- Graduation: quiz one card correct three separate runs — on graduation its star
+  disappears (the row leaves the saved queue) and `About` counts it (`1 nouns learned`).
+- Rotation mid-quiz: rotate after answering 1 of 3 — the counter shows `2 of 3`, the
+  answered word never comes back, and the end tally includes the pre-rotation answer
+  (same through force-stop + relaunch).
+- Re-star a graduate: star a graduated word again — the next session re-queues it from
+  level zero (the About count drops to pre-graduate value at that session build; one-
+  session lag accepted).
+- About count: `About` shows `N nouns learned`; un-starring a level 1–2 word kills its
+  progress (`UnsavingFromDetail…` test pins the automated half).
 - System dark mode: app appearance stays identical (single-appearance design; the
   `NightModeInvarianceTest` pins this).
 

@@ -596,7 +596,21 @@ fun SearchScreen(
                 overflow()
             }
             }
-            if (showAbout) AboutDialog(meta = meta, onDismiss = { showAbout = false })
+            // The learned count rides the dialog, not the composition: read once per
+            // open (the spec's accepted staleness window), off-main like every store
+            // touch, and dropped on close so the next open re-reads.
+            var learnedCount by remember { mutableStateOf<Int?>(null) }
+            LaunchedEffect(showAbout) {
+                val learning = learningRepository
+                learnedCount = if (!showAbout || learning == null) {
+                    null
+                } else {
+                    withContext(Dispatchers.IO) { runCatching { learning.learnedCount() }.getOrNull() }
+                }
+            }
+            if (showAbout) {
+                AboutDialog(meta = meta, learnedCount = learnedCount, onDismiss = { showAbout = false })
+            }
             if (quizActive) {
                 // The answered card holds the stage through its feedback wash; the end
                 // card takes over only once the wash has cleared.

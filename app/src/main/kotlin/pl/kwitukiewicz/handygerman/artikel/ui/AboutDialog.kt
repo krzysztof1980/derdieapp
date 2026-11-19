@@ -16,10 +16,12 @@ import pl.kwitukiewicz.handygerman.artikel.core.NounsSchema
  * credits the German Wiktionary under CC BY-SA 4.0 + GFDL, names the exact dump via the
  * repository's `built_from` meta stamp, and credits the wiktiopeggynary parser that
  * produced the data. [meta] arrives from the screen's off-main provider, so composing
- * this stays a pure read.
+ * this stays a pure read. [learnedCount] — read by the screen when the dialog opens —
+ * adds the one learning line, shown iff known (null while the store is still opening,
+ * or when this build carries no learning store).
  */
 @Composable
-fun AboutDialog(meta: Map<String, String>, onDismiss: () -> Unit) {
+fun AboutDialog(meta: Map<String, String>, learnedCount: Int?, onDismiss: () -> Unit) {
     val body = buildString {
         appendLine(stringResource(R.string.about_attribution))
         appendLine(
@@ -29,6 +31,10 @@ fun AboutDialog(meta: Map<String, String>, onDismiss: () -> Unit) {
             ),
         )
         append(stringResource(R.string.about_parser))
+        if (learnedCount != null) {
+            appendLine()
+            append(stringResource(R.string.about_learned_count, learnedCount))
+        }
     }
     AlertDialog(
         onDismissRequest = onDismiss,
