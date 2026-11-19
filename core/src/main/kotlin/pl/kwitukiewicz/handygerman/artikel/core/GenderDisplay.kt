@@ -11,7 +11,8 @@ private val PLURAL_PSEUDO_GENDERS = setOf(Gender.PLURAL, Gender.M_PLURAL, Gender
 fun articlesText(genders: List<Gender>): String =
     genders.joinToString("/") { article(it) }
 
-private fun article(gender: Gender): String = when (gender) {
+/** The article string for one gender; UTRUM renders an en dash. */
+fun article(gender: Gender): String = when (gender) {
     Gender.MASKULINUM, Gender.M_PLURAL -> "der"
     Gender.FEMININUM, Gender.F_PLURAL, Gender.PLURAL -> "die"
     Gender.NEUTRUM -> "das"
