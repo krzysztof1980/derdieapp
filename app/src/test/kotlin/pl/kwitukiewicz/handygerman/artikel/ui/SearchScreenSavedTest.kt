@@ -23,6 +23,7 @@ import pl.kwitukiewicz.handygerman.artikel.core.FakeLearningRepository
 import pl.kwitukiewicz.handygerman.artikel.core.FakeSavedWordsRepository
 import pl.kwitukiewicz.handygerman.artikel.core.FakeWordRepository
 import pl.kwitukiewicz.handygerman.artikel.core.LearningRepository
+import pl.kwitukiewicz.handygerman.artikel.core.LearningState
 import pl.kwitukiewicz.handygerman.artikel.core.Gender
 import pl.kwitukiewicz.handygerman.artikel.core.Kind
 import pl.kwitukiewicz.handygerman.artikel.core.LookupEngine
@@ -87,6 +88,47 @@ class SearchScreenSavedTest {
         assertEquals("Zeit", stored.lemma)
         assertEquals("(die) Zeit, Verlauf", stored.firstMeaning)
         assertTrue(stored.savedAtMillis > 0L)
+    }
+
+    /**
+     * The star is the learning: un-starring an in-progress word (level 1, earned
+     * on a real quiz card) deletes its learning row — and re-starring does not
+     * resurrect it, so the next session starts from zero.
+     */
+    @Test
+    fun unsavingFromDetailDeletesLearningProgress() {
+        show()
+        compose.typeQuery("Zeit")
+        compose.awaitTag(UiTags.SAVE_TOGGLE)
+        compose.onNodeWithTag(UiTags.SAVE_TOGGLE).performClick()
+        compose.awaitStarDescription("Remove from saved")
+
+        // One-word run, answered correctly: level 1 lands on the learning fake.
+        compose.typeQuery("")
+        compose.onNodeWithTag(UiTags.MENU).performClick()
+        compose.awaitSemanticsText(UiTags.MENU_ITEM, "Start quiz · 1")
+        compose.onNodeWithText("Start quiz · 1").performClick()
+        compose.awaitTag(UiTags.QUIZ_WORD)
+        compose.onNodeWithText("die").performClick()
+        compose.awaitTag(UiTags.QUIZ_END)
+        assertEquals(
+            LearningState(1, null),
+            fakeLearning.statesMap[WordIdentity("zeit", "FEMININUM", 1)],
+        )
+
+        // Un-star from the detail: the learning row must go with the save.
+        compose.onNodeWithText("Back to list").performClick()
+        compose.awaitRowCount(UiTags.SAVED_ROW, 1)
+        compose.onNodeWithTag(UiTags.SAVED_ROW).performClick()
+        compose.awaitSemanticsText(UiTags.WORD, "Zeit")
+        compose.onNodeWithTag(UiTags.SAVE_TOGGLE).performClick()
+        compose.awaitStarDescription("Save word")
+        assertTrue(fakeLearning.statesMap.isEmpty())
+
+        // Re-star: no resurrection — the next session starts from level zero.
+        compose.onNodeWithTag(UiTags.SAVE_TOGGLE).performClick()
+        compose.awaitStarDescription("Remove from saved")
+        assertTrue(fakeLearning.statesMap.isEmpty())
     }
 
     @Test

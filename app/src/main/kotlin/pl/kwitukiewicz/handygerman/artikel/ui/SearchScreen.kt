@@ -184,9 +184,10 @@ fun SearchScreen(
     val savedRepository = savedStore?.getOrNull()
     val learningRepository = learningStore?.getOrNull()
 
-    // The overflow's queue count — an honest read of the store, refreshed when the
-    // store opens and when the list epoch moves (graduation unsaves bump it too).
-    val queueCount by produceState(0, savedRepository, savedListEpoch.intValue) {
+    // The overflow's queue count — an honest read of the store, refreshed whenever
+    // the store opens or any store write lands (savedWrites: stars and un-saves;
+    // savedListEpoch: the list remounts, graduation included).
+    val queueCount by produceState(0, savedRepository, savedListEpoch.intValue, savedWrites.intValue) {
         value = withContext(Dispatchers.IO) {
             runCatching { savedRepository?.page(null, QUEUE_LIMIT)?.size ?: 0 }.getOrDefault(0)
         }
@@ -318,11 +319,14 @@ fun SearchScreen(
     // filled star never promises a save the store refused.
     fun toggleSaved(entry: Entry) {
         val repository = savedRepository ?: return
+        val learning = learningRepository
         val identity = published.identities[entry.entryId] ?: return
         lookupScope.launch(Dispatchers.IO) {
             val wasSaved = repository.isSaved(identity)
             if (wasSaved) {
                 repository.unsave(identity)
+                // "The star is the learning": un-saving kills the progress with it.
+                learning?.delete(identity)
             } else {
                 repository.save(
                     SavedWord(
@@ -347,8 +351,10 @@ fun SearchScreen(
     // Row star = un-save of exactly that variant, the detail star's inverse; the
     // epoch bump remounts the mounted list so the row vanishes without a reload.
     fun unsaveSavedWord(repository: SavedWordsRepository, saved: SavedWord) {
+        val learning = learningRepository
         lookupScope.launch(Dispatchers.IO) {
             repository.unsave(saved.identity)
+            learning?.delete(saved.identity) // same rule as the detail star
             savedWrites.intValue++
             withContext(Dispatchers.Main) {
                 published = published.copy(saved = published.saved - saved.identity)

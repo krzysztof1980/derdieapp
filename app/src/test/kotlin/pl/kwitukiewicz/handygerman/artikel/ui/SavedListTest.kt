@@ -40,6 +40,7 @@ class SavedListTest {
     val compose = createComposeRule()
 
     private val fakeSaved = FakeSavedWordsRepository()
+    private val fakeLearning = FakeLearningRepository()
 
     /** Rounds the paging scroll retries before the test declares the page lost. */
     private val scrollAttempts = 20
@@ -48,7 +49,7 @@ class SavedListTest {
         store: FakeSavedWordsRepository = fakeSaved,
         engineLoader: suspend () -> LookupEngine = { LookupEngine(FakeWordRepository()) },
     ) = compose.setContent {
-        SearchScreen(engineLoader = engineLoader, savedLoader = { store }, learningLoader = { FakeLearningRepository() })
+        SearchScreen(engineLoader = engineLoader, savedLoader = { store }, learningLoader = { fakeLearning })
     }
 
     /** Row texts of the saved list, in display order. */
@@ -190,6 +191,25 @@ class SavedListTest {
         compose.pumpFrames()
         compose.onAllNodesWithTag(UiTags.SAVED_ROW).assertCountEquals(0)
         assertTrue(fakeSaved.saved.isEmpty())
+    }
+
+    /**
+     * The row star is the detail star's inverse — including its second half:
+     * "the star is the learning", so un-saving here deletes the in-progress
+     * learning row in the same IO hop (no orphaned level behind a gone save).
+     */
+    @Test
+    fun rowStarUnsaveDeletesLearningProgress() {
+        fakeSaved.save(savedWord("Zeit", "zeit", "FEMININUM", 1, "Verlauf", 100L))
+        fakeLearning.putLevel(WordIdentity("zeit", "FEMININUM", 1), 1)
+        show()
+        compose.awaitTag(UiTags.SAVED_ROW)
+
+        compose.onAllNodesWithTag(UiTags.SAVE_TOGGLE)[0].performClick()
+
+        compose.pumpFrames()
+        compose.onAllNodesWithTag(UiTags.SAVED_ROW).assertCountEquals(0)
+        assertTrue(fakeLearning.statesMap.isEmpty())
     }
 
     // Name says what the mechanism delivers: the row is gone when the list comes
